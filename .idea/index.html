@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visual Codeblocks Interpreter</title>
+  <style>
+    :root {
+      --bg-color: #f0f0f0;
+      --sidebar-width: 320px;
+      --block-height: 32px;
+
+      /* Colors */
+      --color-vars: #FF8C1A; /* Orange */
+      --color-logic: #FFAB19; /* Yellow */
+      --color-io: #5CB1D6;   /* Blue */
+      --color-error: #FF4444;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #e0e0e0;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* --- Layout --- */
+    #toolbox {
+      width: var(--sidebar-width);
+      background-color: #fafafa;
+      border-right: 2px solid #ccc;
+      padding: 15px;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    #main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    #controls {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      z-index: 100;
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #btn-run { background-color: #4CAF50; color: white; }
+    #btn-run:hover { background-color: #45a049; }
+    #btn-clear { background-color: #f44336; color: white; }
+    #btn-clear:hover { background-color: #d32f2f; }
+
+    #workspace {
+      flex: 1;
+      margin: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: auto;
+      padding: 20px;
+      /* Важно для размещения корневых блоков */
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      align-content: flex-start;
+      flex-wrap: wrap; /* Позволяет блокам стоять рядом, если нужно */
+    }
+
+    /* --- Console --- */
+    #console {
+      height: 150px;
+      background-color: #1e1e1e;
+      color: #00ff00;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 10px;
+      overflow-y: auto;
+      border-top: 3px solid #333;
+      font-size: 14px;
+    }
+    .log-entry { margin-bottom: 4px; }
+    .log-error { color: #ff5555; font-weight: bold; }
+
+    /* --- Block Categories --- */
+    .category {
+      margin-bottom: 20px;
+    }
+    .category-header {
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: #555;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 1px;
+    }
+
+    /* --- Block Base Styles --- */
+    .block {
+      position: relative; /* Context for absolute children if any */
+      background-color: var(--color-vars);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: grab;
+      margin-bottom: 2px; /* Small margin to separate stacks */
+      display: inline-flex;
+      flex-direction: column;
+      min-width: 100px;
+      font-size: 14px;
+      /* Stacking context */
+      z-index: 1;
+      transition: box-shadow 0.2s;
+    }
+
+    .block:active { cursor: grabbing; }
+
+    /* Block Parts */
+    .block-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 2;
+      position: relative;
+    }
+
+    /* Inputs inside blocks */
+    .block input, .block select {
+      background-color: rgba(255,255,255,0.9);
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: 10px;
+      padding: 2px 6px;
+      color: #333;
+      font-size: 12px;
+      min-width: 40px;
+      outline: none;
+    }
+    .block input:focus { border-color: #4CAF50; }
+
+    /* --- Specific Block Types --- */
+
+    /* Logic Block (If) */
+    .block-logic {
+      background-color: var(--color-logic);
+      border-bottom-left-radius: 0; /* Visual style for C-block */
+      border-bottom-right-radius: 0;
+    }
+
+    /* Container for nested blocks inside IF */
+    .block-body {
+      background-color: rgba(0,0,0,0.1);
+      margin: 8px -4px 4px 10px; /* Indent */
+      padding: 10px 4px 4px 4px;
+      border-radius: 0 6px 6px 6px;
+      min-height: 40px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* IO Block */
+    .block-io {
+      background-color: var(--color-io);
+    }
+
+    /* --- Stacking Logic (Notches) --- */
+
+    /* Connector (Bottom part of block) */
+    .connector {
+      position: absolute;
+      bottom: 0;
+      left: 15px;
+      width: 20px;
+      height: 6px;
+      background-color: inherit;
+      border-radius: 0 0 4px 4px;
+      z-index: 1;
+    }
+
+    /* Notch (Top part of block) */
+    .notch {
+      position: absolute;
+      top: 0;
+      left: 15px;
+      width: 20px;
+      height: 6px;
+      background-color: white; /* Hole color */
+      border-radius: 0 0 4px 4px;
+      z-index: 1;
+      clip-path: polygon(0 100%, 40% 100%, 50% 0%, 60% 100%, 100% 100%, 100% 0, 0 0);
+    }
+
+    /* Dropzone Highlight */
+    .drop-active {
+      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.5);
+    }
+
+    .drop-target-body {
+      background-color: rgba(76, 175, 80, 0.2) !important;
+    }
+
+    .block-error {
+      box-shadow: 0 0 0 3px var(--color-error) !important;
+    }
+
+    /* Helper to identify stacks */
+    .stack-root {
+      margin-bottom: 10px; /* Space between separate stacks */
+    }
+
+  </style>
+</head>
+<body>
+
+<!-- Toolbox -->
+<div id="toolbox">
+  <div class="category">
+    <div class="category-header">Переменные</div>
+    <!-- Declare -->
+    <div class="block block-vars" data-type="decl" draggable="true">
+      <div class="block-header">
+        <span>объявить</span>
+        <input type="text" placeholder="a,b" class="input-names" style="width: 80px;">
+      </div>
+      <div class="notch"></div>
+      <div class="connector"></div>
+    </div>
+
+    <!-- Assign -->
+    <div class="block block-vars" data-type="assign" draggable="true">
+      <div class="block-header">
+        <input type="text" placeholder="x" class="input-target" style="width: 50px;">
+        <span>:=</span>
+        <input type="text" placeholder="5" class="input-value" style="width: 60px;">
+      </div>
+      <div class="notch"></div>
+      <div class="connector"></div>
+    </div>
+  </div>
+
+  <div class="category">
+    <div class="category-header">Логика</div>
+    <!-- If Block -->
+    <div class="block block-logic" data-type="if" draggable="true">
+      <div class="block-header">
+        <span>если</span>
+        <input type="text" placeholder="x" class="input-cond-left" style="width: 40px;">
+        <select class="input-cond-op">
+          <option value=">">></option>
+          <option value="<"><</option>
+          <option value="==">=</option>
+          <option value="!=">!=</option>
+          <option value=">=">>=</option>
+          <option value="<="><=</option>
+        </select>
+        <input type="text" placeholder="y" class="input-cond-right" style="width: 40px;">
+        <span>то</span>
+      </div>
+      <div class="block-body dropzone">
+        <!-- Nested blocks go here -->
+      </div>
+      <div class="notch"></div>
+      <div class="connector" style="bottom: -4px;"></div> <!-- Adjust connector pos if needed -->
+    </div>
+  </div>
+
+  <div class="category">
+    <div class="category-header">Вывод</div>
+    <div class="block block-io" data-type="print" draggable="true">
+      <div class="block-header">
+        <span>вывести</span>
+        <input type="text" placeholder="значение" class="input-msg" style="width: 100px;">
+      </div>
+      <div class="notch"></div>
+      <div class="connector"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Area -->
+<div id="main-area">
+  <div id="controls">
+    <button id="btn-run">Запустить ▶</button>
+    <button id="btn-clear">Очистить 🗑</button>
+  </div>
+
+  <!-- Workspace -->
+  <div id="workspace">
+    <!-- Blocks will be dropped here -->
+  </div>
+
+  <!-- Console -->
+  <div id="console"></div>
+</div>
+
+<script>
+  /**
+   * INTERPRETER ENGINE
+   */
+  class Interpreter {
+    constructor(consoleEl) {
+      this.vars = {};
+      this.consoleEl = consoleEl;
+      this.errorBlock = null;
+    }
+
+    log(msg, isError = false) {
+      const div = document.createElement('div');
+      div.className = 'log-entry' + (isError ? ' log-error' : '');
+      div.innerText = msg;
+      this.consoleEl.appendChild(div);
+      this.consoleEl.scrollTop = this.consoleEl.scrollHeight;
+    }
+
+    clear() {
+      this.consoleEl.innerHTML = '';
+      if (this.errorBlock) {
+        this.errorBlock.classList.remove('block-error');
+        this.errorBlock = null;
+      }
+    }
+
+    run(rootElement) {
+      this.clear();
+      this.vars = {};
+      this.log("Starting execution...");
+
+      try {
+        // Find all root blocks directly inside workspace
+        const rootBlocks = Array.from(rootElement.children).filter(el => el.classList.contains('block'));
+        this.executeList(rootBlocks);
+        this.log("Finished.");
+      } catch (e) {
+        this.log("Ошибка: " + e.message, true);
+      }
+    }
+
+    executeList(blocks) {
+      for (const block of blocks) {
+        this.executeBlock(block);
+      }
+    }
+
+    executeBlock(block) {
+      // Highlight logic can be added here (e.g., briefly change color)
+      const type = block.dataset.type;
+
+      switch(type) {
+        case 'decl': this.handleDecl(block); break;
+        case 'assign': this.handleAssign(block); break;
+        case 'if': this.handleIf(block); break;
+        case 'print': this.handlePrint(block); break;
+      }
+    }
+
+    setError(block, msg) {
+      if (this.errorBlock) this.errorBlock.classList.remove('block-error');
+      block.classList.add('block-error');
+      this.errorBlock = block;
+      throw new Error(msg);
+    }
+
+    handleDecl(block) {
+      const input = block.querySelector('.input-names');
+      const names = input.value.split(',');
+      names.forEach(n => {
+        const name = n.trim();
+        if (!name) return;
+        if (!/^[a-zA-Z_]/.test(name)) this.setError(block, `Неверное имя: ${name}`);
+        this.vars[name] = 0;
+      });
+    }
+
+    handleAssign(block) {
+      const target = block.querySelector('.input-target').value.trim();
+      const expr = block.querySelector('.input-value').value;
+
+      if (!target) this.setError(block, "Пустая переменная назначения");
+      if (this.vars[target] === undefined) this.setError(block, `Переменная '${target}' не объявлена`);
+
+      const val = this.parseMath(expr, block);
+      this.vars[target] = val;
+    }
+
+    handlePrint(block) {
+      const expr = block.querySelector('.input-msg').value;
+      const val = this.parseMath(expr, block);
+      this.log(String(val));
+    }
+
+    handleIf(block) {
+      const leftExpr = block.querySelector('.input-cond-left').value;
+      const op = block.querySelector('.input-cond-op').value;
+      const rightExpr = block.querySelector('.input-cond-right').value;
+
+      const left = this.parseMath(leftExpr, block);
+      const right = this.parseMath(rightExpr, block);
+
+      let cond = false;
+      switch(op) {
+        case '>': cond = left > right; break;
+        case '<': cond = left < right; break;
+        case '==': cond = left === right; break;
+        case '!=': cond = left !== right; break;
+        case '>=': cond = left >= right; break;
+        case '<=': cond = left <= right; break;
+      }
+
+      if (cond) {
+        const body = block.querySelector('.block-body');
+        const children = Array.from(body.children).filter(el => el.classList.contains('block'));
+        this.executeList(children);
+      }
+    }
+
+    // --- Parser ---
+    parseMath(str, contextBlock) {
+      if (!str && str !== 0) return 0; // Handle empty input gracefully
+
+      // Tokenizer
+      const tokens = [];
+      const regex = /\s*([0-9]+)|([a-zA-Z_][a-zA-Z0-9_]*)|(\+|\-|\*|\/|\%|\(|\))/g;
+      let match;
+      while ((match = regex.exec(str)) != null) {
+        if (match[1]) tokens.push({type: 'NUM', val: parseInt(match[1])});
+        else if (match[2]) tokens.push({type: 'VAR', val: match[2]});
+        else if (match[3]) tokens.push({type: 'OP', val: match[3]});
+      }
+
+      let pos = 0;
+      const peek = () => tokens[pos];
+      const consume = () => tokens[pos++];
+
+      const parseExpr = () => {
+        let res = parseTerm();
+        while (peek() && peek().type === 'OP' && (peek().val === '+' || peek().val === '-')) {
+          const op = consume().val;
+          const right = parseTerm();
+          if (op === '+') res += right;
+          else res -= right;
+        }
+        return res;
+      };
+
+      const parseTerm = () => {
+        let res = parseFactor();
+        while (peek() && peek().type === 'OP' && (peek().val === '*' || peek().val === '/' || peek().val === '%')) {
+          const op = consume().val;
+          const right = parseFactor();
+          if (op === '*') res *= right;
+          else if (op === '/') {
+            if (right === 0) this.setError(contextBlock, "Деление на 0");
+            res = Math.floor(res / right);
+          }
+          else res %= right;
+        }
+        return res;
+      };
+
+      const parseFactor = () => {
+        const t = peek();
+        if (!t) this.setError(contextBlock, `Ожидается число или переменная в: "${str}"`);
+
+        if (t.type === 'NUM') {
+          consume();
+          return t.val;
+        }
+        if (t.type === 'VAR') {
+          consume();
+          if (this.vars[t.val] === undefined) this.setError(contextBlock, `Переменная '${t.val}' не объявлена`);
+          return this.vars[t.val];
+        }
+        if (t.type === 'OP' && t.val === '(') {
+          consume(); // (
+          const res = parseExpr();
+          if (!peek() || peek().val !== ')') this.setError(contextBlock, "Пропущена скобка )");
+          consume(); // )
+          return res;
+        }
+
+        this.setError(contextBlock, `Синтаксическая ошибка: ${t.val}`);
+      };
+
+      try {
+        const result = parseExpr();
+        // Check for trailing garbage
+        if (peek()) this.setError(contextBlock, `Лишние символы после выражения`);
+        return result;
+      } catch(e) {
+        throw e;
+      }
+    }
+  }
+
+  /**
+   * UI & DRAG AND DROP
+   */
+  const workspace = document.getElementById('workspace');
+  const consoleEl = document.getElementById('console');
+  const engine = new Interpreter(consoleEl);
+
+  let draggedEl = null;
+  let ghost = null;
+  let dragOffsetX = 0, dragOffsetY = 0;
+
+  // Helper to check if element is a valid drop container (workspace or body)
+  function isContainer(el) {
+    return el.id === 'workspace' || el.classList.contains('block-body');
+  }
+
+  // Mousedown on a block (from toolbox or workspace)
+  document.addEventListener('mousedown', e => {
+    const target = e.target.closest('.block');
+    // Don't drag if clicking inputs/selects
+    if (!target || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+    e.preventDefault();
+
+    // Create clone
+    draggedEl = target.cloneNode(true);
+    draggedEl.classList.add('dragging'); // Class for styling while dragging
+
+    // If dragging from toolbox, keep original.
+    // If dragging from workspace, we want to 'move' it, so we hide original and show ghost.
+    // Actually, simpler: Always clone.
+    // If source is workspace, we remove source on mouseup.
+
+    const rect = target.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+
+    // Style the clone
+    draggedEl.style.position = 'absolute';
+    draggedEl.style.width = rect.width + 'px';
+    draggedEl.style.left = rect.left + 'px';
+    draggedEl.style.top = rect.top + 'px';
+    draggedEl.style.zIndex = 1000;
+    draggedEl.style.pointerEvents = 'none';
+
+    document.body.appendChild(draggedEl);
+
+    // If moving from workspace, mark original for removal
+    if (target.parentElement.id === 'workspace' || target.parentElement.classList.contains('block-body')) {
+      target.classList.add('marked-for-removal');
+    }
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!draggedEl) return;
+
+    draggedEl.style.left = (e.clientX - dragOffsetX) + 'px';
+    draggedEl.style.top = (e.clientY - dragOffsetY) + 'px';
+
+    // Highlight potential drop targets
+    // Hide dragged element temporarily to find element below
+    draggedEl.style.display = 'none';
+    const below = document.elementFromPoint(e.clientX, e.clientY);
+    draggedEl.style.display = '';
+
+    // Remove old highlights
+    document.querySelectorAll('.drop-active, .drop-target-body').forEach(el => {
+      el.classList.remove('drop-active', 'drop-target-body');
+    });
+
+    if (!below) return;
+
+    // Cases for dropping:
+    // 1. Inside a body (If block)
+    const bodyContainer = below.closest('.block-body');
+    if (bodyContainer) {
+      bodyContainer.classList.add('drop-target-body');
+      return;
+    }
+
+    // 2. Top or Bottom of a block
+    const targetBlock = below.closest('.block:not(.dragging)');
+    if (targetBlock && targetBlock.parentElement && isContainer(targetBlock.parentElement)) {
+      const rect = targetBlock.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+
+      // If mouse is in top half -> Connect Before
+      // If mouse is in bottom half -> Connect After
+      if (e.clientY < midY) {
+        targetBlock.classList.add('drop-active'); // Visual hint top
+      } else {
+        targetBlock.classList.add('drop-active'); // Visual hint bottom
+      }
+    }
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (!draggedEl) return;
+
+    // Identify drop target
+    draggedEl.style.display = 'none';
+    const below = document.elementFromPoint(e.clientX, e.clientY);
+    draggedEl.style.display = '';
+
+    // Remove old "marked" elements
+    document.querySelectorAll('.marked-for-removal').forEach(el => el.remove());
+
+    let dropped = false;
+
+    if (below) {
+      // Case 1: Drop inside IF body
+      const body = below.closest('.block-body');
+      if (body) {
+        // Clean up absolute positioning styles from drag
+        draggedEl.style.position = '';
+        draggedEl.style.width = '';
+        draggedEl.style.left = '';
+        draggedEl.style.top = '';
+        draggedEl.style.zIndex = '';
+        draggedEl.style.pointerEvents = '';
+        draggedEl.classList.remove('dragging');
+
+        body.appendChild(draggedEl);
+        dropped = true;
+      } else {
+        // Case 2: Connect to another block or workspace
+        const target = below.closest('.block:not(.dragging)');
+        const container = below.closest('#workspace') || (target ? target.parentElement : null);
+
+        if (container) {
+          draggedEl.style.position = '';
+          draggedEl.style.width = '';
+          draggedEl.style.left = '';
+          draggedEl.style.top = '';
+          draggedEl.style.zIndex = '';
+          draggedEl.style.pointerEvents = '';
+          draggedEl.classList.remove('dragging');
+
+          if (target) {
+            const rect = target.getBoundingClientRect();
+            if (e.clientY < rect.top + rect.height / 2) {
+              container.insertBefore(draggedEl, target);
+            } else {
+              container.insertBefore(draggedEl, target.nextSibling);
+            }
+          } else {
+            container.appendChild(draggedEl);
+          }
+          dropped = true;
+        }
+      }
+    }
+
+    if (!dropped) {
+      // Dropped in void, just remove clone
+      draggedEl.remove();
+    }
+
+    // Cleanup visuals
+    document.querySelectorAll('.drop-active, .drop-target-body').forEach(el => {
+      el.classList.remove('drop-active', 'drop-target-body');
+    });
+
+    draggedEl = null;
+  });
+
+  // Buttons
+  document.getElementById('btn-run').addEventListener('click', () => {
+    engine.run(workspace);
+  });
+
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    workspace.innerHTML = '';
+    consoleEl.innerHTML = '';
+  });
+
+</script>
+</body>
+</html>
