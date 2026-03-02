@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Codeblocks Playground</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="app.js" defer></script>
+    <style>
+        :root {
+            --bg-page: #0d1724;
+            --bg-panel: #0f1928;
+            --bg-chip: #111827;
+            --border-subtle: #233146;
+            --border-strong: #2f3f58;
+
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+            --text-soft: #6b7280;
+
+            --accent: #38bdf8;
+            --accent-soft: rgba(56, 189, 248, 0.12);
+
+            --block-vars: #22c55e;
+            --block-logic: #eab308;
+            --block-io: #3b82f6;
+            --error: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                    radial-gradient(circle at top left, #1f2937 0, transparent 45%),
+                    radial-gradient(circle at bottom right, #020617 0, transparent 55%),
+                    var(--bg-page);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 10px 18px;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(18px);
+            background: linear-gradient(to right, rgba(13, 23, 36, 0.98), rgba(15, 23, 42, 0.98));
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            color: var(--text-main);
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border-subtle);
+            background: linear-gradient(to bottom, #0b1220, #020617);
+            color: var(--text-main);
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition:
+                    background 0.12s ease,
+                    border-color 0.12s ease,
+                    transform 0.08s ease,
+                    box-shadow 0.12s ease;
+        }
+
+        .btn-primary {
+            border-color: rgba(56, 189, 248, 0.8);
+            background: linear-gradient(135deg, #22c1c3, #38bdf8);
+            color: #020617;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.95);
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            background: linear-gradient(to bottom, #020617, #020617);
+            border-color: var(--border-strong);
+            transform: translateY(-0.5px);
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.9);
+        }
+
+        .btn-primary:hover {
+            border-color: rgba(56, 189, 248, 0.8);
+            background: linear-gradient(135deg, #22c1c3, #38bdf8);
+            filter: brightness(1.03);
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 1);
+        }
+
+        .app {
+            flex: 1;
+            display: flex;
+            padding: 14px 16px 18px;
+            gap: 14px;
+        }
+
+        .panel {
+            background: radial-gradient(circle at top left, #111827, #020617);
+            border-radius: 18px;
+            border: 1px solid var(--border-subtle);
+            box-shadow:
+                    0 22px 55px rgba(0, 0, 0, 0.9),
+                    0 0 0 1px rgba(15, 23, 42, 1);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Чипы-лейблы сверху панелей */
+        .panel-header-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 1);
+            border: 1px solid rgba(31, 41, 55, 0.9);
+            margin-bottom: 10px;
+        }
+
+
+
+        .panel-header-chip-label {
+            font-size: 10px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .blocks-panel {
+            width: 270px;
+            max-width: 300px;
+            gap: 10px;
+            background: radial-gradient(circle at top, #111827, #020617);
+        }
+
+        .panel-title {
+            display: none; /* заменено на чип */
+        }
+
+        .blocks-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .block {
+            position: relative;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #020617, #111827);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+            font-size: 12px;
+            display: inline-flex;
+            flex-direction: column;
+            cursor: grab;
+            user-select: none;
+            transition:
+                    transform 0.1s ease,
+                    box-shadow 0.12s ease,
+                    border-color 0.12s ease,
+                    background 0.12s ease;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.9);
+            min-width: 150px;
+            margin-bottom: 2px;
+        }
+
+        .block:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 1);
+            border-color: rgba(56, 189, 248, 0.8);
+            background: linear-gradient(135deg, #020617, #0f172a);
+        }
+
+        .block-label {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .block-name {
+            font-weight: 500;
+        }
+
+        .block-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .workspace-panel {
+            flex: 1;
+            gap: 12px;
+            position: relative;
+            overflow: hidden;
+            background: radial-gradient(circle at top, #020617, #020617);
+        }
+
+        .workspace-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .workspace-title-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .workspace-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-main);
+        }
+        .workspace-subtitle-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 1);
+            border: 1px solid rgba(31, 41, 55, 0.9);
+            font-size: 10px;
+            color: var(--text-soft);
+        }
+
+        .workspace-toolbar {
+            display: flex;
+            gap: 6px;
+        }
+
+        .workspace-canvas {
+            flex: 1;
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+            background:
+                    radial-gradient(circle at 0 0, rgba(56, 189, 248, 0.08), transparent 55%),
+                    radial-gradient(circle at 100% 100%, rgba(94, 234, 212, 0.09), transparent 55%),
+                    radial-gradient(circle at 0 100%, rgba(129, 140, 248, 0.12), transparent 55%),
+                    #020617;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Рамка выделения */
+        .selection-box {
+            position: absolute;
+            border: 2px solid rgba(56, 189, 248, 0.8);
+            background: rgba(56, 189, 248, 0.15);
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* Выделенный блок */
+        .workspace-block.selected {
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.9);
+            border-color: rgba(56, 189, 248, 1);
+        }
+
+        .workspace-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .workspace-placeholder-title {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .workspace-placeholder-subtitle {
+            font-size: 11px;
+            color: var(--text-soft);
+            max-width: 260px;
+        }
+
+        .workspace-block {
+            position: absolute;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #020617, #14532d);
+            border: 1px solid rgba(34, 197, 94, 0.9);
+            color: #ecfdf5;
+            font-size: 12px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 1);
+            cursor: grab;
+            user-select: none;
+            display: inline-flex;
+            flex-direction: column;
+            min-width: 170px;
+        }
+
+        .workspace-block.block-print {
+            background: linear-gradient(135deg, #020617, #1d4ed8);
+            border-color: rgba(59, 130, 246, 0.95);
+        }
+
+        .workspace-block.block-if {
+            background: linear-gradient(135deg, #020617, #854d0e);
+            border-color: rgba(234, 179, 8, 0.95);
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .workspace-block.block-assign {
+            background: linear-gradient(135deg, #020617, #166534);
+            border-color: rgba(34, 197, 94, 0.95);
+        }
+
+        .block-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 2;
+            position: relative;
+        }
+
+        .workspace-block input,
+        .workspace-block select {
+            background-color: #020617;
+            border: 1px solid var(--border-subtle);
+            border-radius: 999px;
+            padding: 2px 8px;
+            color: var(--text-main);
+            font-size: 11px;
+            min-width: 40px;
+            outline: none;
+        }
+
+        .workspace-block input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.8);
+        }
+
+        .connector {
+            position: absolute;
+            bottom: -4px;
+            left: 15px;
+            width: 24px;
+            height: 8px;
+            background-color: inherit;
+            border-radius: 0 0 4px 4px;
+            z-index: 1;
+        }
+
+        .notch {
+            position: absolute;
+            top: -4px;
+            left: 15px;
+            width: 24px;
+            height: 8px;
+            background-color: #020617;
+            z-index: 1;
+            clip-path: polygon(0 100%, 40% 100%, 50% 0%, 60% 100%, 100% 100%, 100% 0, 0 0);
+        }
+
+        .block-body {
+            background-color: rgba(15, 23, 42, 0.96);
+            margin: 8px -4px 4px 10px;
+            padding: 8px 4px 4px 4px;
+            border-radius: 0 6px 6px 6px;
+            min-height: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border: 1px dashed var(--border-subtle);
+        }
+
+        .drop-delete-area {
+            position: absolute;
+            right: 12px;
+            bottom: 12px;
+            width: 120px;
+            height: 60px;
+            border-radius: 12px;
+            border: 1px dashed rgba(248, 113, 113, 0.7);
+            color: #fecaca;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at top, rgba(127, 29, 29, 0.6), rgba(15, 23, 42, 0.96));
+            pointer-events: none;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 1);
+        }
+
+        .drop-delete-area.active {
+            border-color: #f97373;
+            background: radial-gradient(circle at top, rgba(127, 29, 29, 0.9), rgba(15, 23, 42, 1));
+        }
+
+        .block-error {
+            box-shadow: 0 0 0 2px var(--error) !important;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 999px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        @media (max-width: 900px) {
+            .app {
+                flex-direction: column;
+            }
+            .blocks-panel {
+                width: 100%;
+                max-width: none;
+                order: 2;
+            }
+            .workspace-panel {
+                order: 1;
+            }
+        }
+    </style>
+
+
+</head>
+<body>
+<header>
+    <div class="logo">
+        <div class="logo-mark"></div>
+        <span>Lepeha Blockly's</span>
+    </div>
+    <div class="header-actions">
+        <button class="btn" id="reset-btn">Сбросить</button>
+        <button class="btn btn-primary">Выполнить программу</button>
+    </div>
+</header>
+
+<main class="app">
+    <section class="panel blocks-panel">
+        <div class="panel-header-chip">
+            <span class="panel-header-chip-dot"></span>
+            <span class="panel-header-chip-label">Блоки</span>
+        </div>
+        <div class="block" data-block-type="print">
+                <div class="block-label">
+                    <span class="block-name">Печать</span>
+                    <span class="block-meta">Выводит текст в консоль</span>
+                </div>
+            </div>
+
+            <div class="block" data-block-type="if">
+                <div class="block-label">
+                    <span class="block-name">Если</span>
+                    <span class="block-meta">Условное ветвление</span>
+                </div>
+            </div>
+
+            <div class="block" data-block-type="assign">
+                <div class="block-label">
+                    <span class="block-name">Присвоение</span>
+                    <span class="block-meta">x = выражение</span>
+                </div>
+            </div>
+    </section>
+
+    <section class="panel workspace-panel">
+        <div class="workspace-header">
+            <div class="workspace-title">
+                <span class="workspace-title-dot"></span>
+                <span>Рабочее пространство</span>
+            </div>
+            <div class="workspace-toolbar">
+                <!-- кнопки сетки убрали -->
+            </div>
+        </div>
+
+        <div class="workspace-canvas" id="workspace-canvas">
+            <div class="workspace-placeholder" id="workspace-placeholder">
+                <div class="workspace-placeholder-title">
+                    Перетащи блок из панели слева
+                </div>
+                <div class="workspace-placeholder-subtitle">
+                    Блоки можно свободно двигать и вкладывать внутрь if.
+                </div>
+            </div>
+
+            <div class="drop-delete-area" id="delete-area">
+                Удалить блок
+            </div>
+        </div>
+    </section>
+</main>
+</body>
+</html>
