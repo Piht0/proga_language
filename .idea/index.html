@@ -1,688 +1,803 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visual Codeblocks Interpreter</title>
-  <style>
-    :root {
-      --bg-color: #f0f0f0;
-      --sidebar-width: 320px;
-      --block-height: 32px;
+    <meta charset="UTF-8">
+    <title>Codeblocks Playground</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="app.js" defer></script>
+    <style>
+        :root {
+            /* --- СВЕТЛАЯ ТЕМА (По умолчанию) --- */
+            --bg-page: #faf8f5;
+            --bg-panel: #ffffff;
+            --bg-panel-soft: #f5f0e8;
+            --bg-chip: #ede7df;
+            --bg-block: #faf8f5;
 
-      /* Colors */
-      --color-vars: #FF8C1A; /* Orange */
-      --color-logic: #FFAB19; /* Yellow */
-      --color-io: #5CB1D6;   /* Blue */
-      --color-error: #FF4444;
-    }
+            --border-subtle: #e5ddd5;
+            --border-medium: #d4c4b0;
+            --border-strong: #c4b396;
 
-    * { box-sizing: border-box; }
+            --text-main: #3d3630;
+            --text-muted: #7a7168;
+            --text-soft: #a89f91;
 
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #e0e0e0;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-    }
+            --accent: #b8956a;
+            --accent-soft: rgba(184, 149, 106, 0.15);
 
-    /* --- Layout --- */
-    #toolbox {
-      width: var(--sidebar-width);
-      background-color: #fafafa;
-      border-right: 2px solid #ccc;
-      padding: 15px;
-      overflow-y: auto;
-      z-index: 10;
-    }
+            --block-vars: #7cb38b;
+            --block-logic: #d4a853;
+            --block-io: #6b9ac4;
+            --error: #d96c6c;
 
-    #main-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-    }
+            --domino-dot: #7a7168;
 
-    #controls {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      z-index: 100;
-      display: flex;
-      gap: 10px;
-    }
+            --icon-theme: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233d3630' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'/%3E%3C/svg%3E");
+        }
 
-    button {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 5px;
-      font-weight: bold;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    #btn-run { background-color: #4CAF50; color: white; }
-    #btn-run:hover { background-color: #45a049; }
-    #btn-clear { background-color: #f44336; color: white; }
-    #btn-clear:hover { background-color: #d32f2f; }
+        /* --- ТЁМНАЯ ТЕМА --- */
+        body.dark-theme {
+            --bg-page: #1a1816;
+            --bg-panel: #252220;
+            --bg-panel-soft: #2e2b29;
+            --bg-chip: #383532;
+            --bg-block: #2e2b29;
 
-    #workspace {
-      flex: 1;
-      margin: 20px;
-      background-color: white;
-      border-radius: 8px;
-      box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
-      position: relative;
-      overflow: auto;
-      padding: 20px;
-      /* Важно для размещения корневых блоков */
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      align-content: flex-start;
-      flex-wrap: wrap; /* Позволяет блокам стоять рядом, если нужно */
-    }
+            --border-subtle: #3f3b36;
+            --border-medium: #524d47;
+            --border-strong: #666059;
 
-    /* --- Console --- */
-    #console {
-      height: 150px;
-      background-color: #1e1e1e;
-      color: #00ff00;
-      font-family: 'Courier New', Courier, monospace;
-      padding: 10px;
-      overflow-y: auto;
-      border-top: 3px solid #333;
-      font-size: 14px;
-    }
-    .log-entry { margin-bottom: 4px; }
-    .log-error { color: #ff5555; font-weight: bold; }
+            --text-main: #e6e2dd;
+            --text-muted: #9c958e;
+            --text-soft: #756f68;
 
-    /* --- Block Categories --- */
-    .category {
-      margin-bottom: 20px;
-    }
-    .category-header {
-      font-weight: bold;
-      margin-bottom: 8px;
-      color: #555;
-      text-transform: uppercase;
-      font-size: 12px;
-      letter-spacing: 1px;
-    }
+            --accent: #d4b085;
+            --accent-soft: rgba(212, 176, 133, 0.15);
 
-    /* --- Block Base Styles --- */
-    .block {
-      position: relative; /* Context for absolute children if any */
-      background-color: var(--color-vars);
-      color: white;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: grab;
-      margin-bottom: 2px; /* Small margin to separate stacks */
-      display: inline-flex;
-      flex-direction: column;
-      min-width: 100px;
-      font-size: 14px;
-      /* Stacking context */
-      z-index: 1;
-      transition: box-shadow 0.2s;
-    }
+            --domino-dot: #9c958e;
 
-    .block:active { cursor: grabbing; }
+            --icon-theme: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e6e2dd' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='5'/%3E%3Cpath d='M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42'/%3E%3C/svg%3E");
+        }
 
-    /* Block Parts */
-    .block-header {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      z-index: 2;
-      position: relative;
-    }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-    /* Inputs inside blocks */
-    .block input, .block select {
-      background-color: rgba(255,255,255,0.9);
-      border: 1px solid rgba(0,0,0,0.1);
-      border-radius: 10px;
-      padding: 2px 6px;
-      color: #333;
-      font-size: 12px;
-      min-width: 40px;
-      outline: none;
-    }
-    .block input:focus { border-color: #4CAF50; }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                    radial-gradient(200% 200% at top, #c7a07a 0, transparent 100%),
+                    radial-gradient(200% 200% at bottom, #e2ceb1 0, transparent 100%),
+                    var(--bg-page);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: background 0.4s ease, color 0.4s ease;
+        }
 
-    /* --- Specific Block Types --- */
+        body.dark-theme {
+            background:
+                    radial-gradient(200% 200% at top, #3d3630 0, transparent 100%),
+                    radial-gradient(200% 200% at bottom, #2e2b29 0, transparent 100%),
+                    var(--bg-page);
+        }
 
-    /* Logic Block (If) */
-    .block-logic {
-      background-color: var(--color-logic);
-      border-bottom-left-radius: 0; /* Visual style for C-block */
-      border-bottom-right-radius: 0;
-    }
+        header,
+        .panel,
+        .block,
+        .workspace-canvas,
+        .btn,
+        .theme-toggle,
+        input,
+        select {
+            transition:
+                    background-color 0.4s ease,
+                    color 0.4s ease,
+                    border-color 0.4s ease,
+                    box-shadow 0.4s ease;
+        }
 
-    /* Container for nested blocks inside IF */
-    .block-body {
-      background-color: rgba(0,0,0,0.1);
-      margin: 8px -4px 4px 10px; /* Indent */
-      padding: 10px 4px 4px 4px;
-      border-radius: 0 6px 6px 6px;
-      min-height: 40px;
-      display: flex;
-      flex-direction: column;
-    }
+        /* ============================================
+           ШАПКА САЙТА (HEADER)
+           ============================================ */
+        header {
+            padding: 10px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(18px);
+            background: rgba(250, 248, 245, 0.85);
+            border-bottom: 1px solid var(--border-subtle);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
 
-    /* IO Block */
-    .block-io {
-      background-color: var(--color-io);
-    }
+        body.dark-theme header {
+            background: rgba(37, 34, 32, 0.85);
+        }
 
-    /* --- Stacking Logic (Notches) --- */
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            color: var(--text-main);
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+        .theme-toggle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid var(--border-medium);
+            background: var(--bg-panel);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 4px;
+            background-image: var(--icon-theme);
+            background-repeat: no-repeat;
+            background-position: center;
+        }
 
-    /* Connector (Bottom part of block) */
-    .connector {
-      position: absolute;
-      bottom: 0;
-      left: 15px;
-      width: 20px;
-      height: 6px;
-      background-color: inherit;
-      border-radius: 0 0 4px 4px;
-      z-index: 1;
-    }
+        .theme-toggle:hover {
+            transform: scale(1.05);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-soft);
+        }
 
-    /* Notch (Top part of block) */
-    .notch {
-      position: absolute;
-      top: 0;
-      left: 15px;
-      width: 20px;
-      height: 6px;
-      background-color: white; /* Hole color */
-      border-radius: 0 0 4px 4px;
-      z-index: 1;
-      clip-path: polygon(0 100%, 40% 100%, 50% 0%, 60% 100%, 100% 100%, 100% 0, 0 0);
-    }
+        .theme-toggle:active {
+            transform: scale(0.95);
+        }
 
-    /* Dropzone Highlight */
-    .drop-active {
-      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.5);
-    }
+        /* ============================================
+           КНОПКИ ДЕЙСТВИЙ
+           ============================================ */
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
 
-    .drop-target-body {
-      background-color: rgba(76, 175, 80, 0.2) !important;
-    }
+        .btn {
+            padding: 6px 12px;
+            border-radius: 999px;
+            border: 1px solid var(--border-medium);
+            background: linear-gradient(135deg, #b8956a, #c4a574);
+            border-color: #b8956a;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition:
+                    background 0.12s ease,
+                    border-color 0.12s ease,
+                    transform 0.08s ease,
+                    box-shadow 0.12s ease;
+        }
 
-    .block-error {
-      box-shadow: 0 0 0 3px var(--color-error) !important;
-    }
+        .btn-primary {
+            background: linear-gradient(135deg, #b8956a, #c4a574);
+            border-color: #b8956a;
+            color: white;
+            font-weight: 500;
+        }
 
-    /* Helper to identify stacks */
-    .stack-root {
-      margin-bottom: 10px; /* Space between separate stacks */
-    }
+        .btn-import {
+            background: linear-gradient(135deg, #b8956a, #c4a574);
+            border-color: #b8956a;
+            color: white;
+            font-weight: 500;
+        }
 
-  </style>
+        .btn:hover {
+            transform: translateY(-0.5px);
+            color: white;
+            background: red;
+            border-color: red;
+            box-shadow: 0 4px 12px red;
+        }
+
+        .btn-primary:hover {
+            color: white;
+            background: linear-gradient(135deg, #3c5c84, #7d99b4);
+            border-color: #7d99b4;
+            box-shadow: 0 4px 12px rgba(125, 153, 180, 0.4);
+        }
+
+        .btn-import:hover {
+            transform: translateY(-0.5px);
+            color: white;
+            background: limegreen;
+            border-color: limegreen;
+            box-shadow: 0 4px 12px limegreen;
+        }
+
+        /* ============================================
+           ОСНОВНОЙ КОНТЕЙНЕР ПРИЛОЖЕНИЯ
+           ============================================ */
+        .app {
+            flex: 1;
+            display: flex;
+            padding: 14px 16px 18px;
+            gap: 14px;
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            border-radius: 18px;
+            border: 1px solid var(--border-subtle);
+            box-shadow:
+                    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+                    0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ============================================
+           ЗАГОЛОВОК ПАНЕЛИ (ЧИП)
+           ============================================ */
+        .panel-header-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: var(--bg-chip);
+            border: 1px solid var(--border-subtle);
+            margin-bottom: 10px;
+        }
+        .panel-header-chip-label {
+            font-size: 10px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           ЛЕВАЯ ПАНЕЛЬ С БЛОКАМИ
+           ============================================ */
+        .blocks-panel {
+            width: 270px;
+            max-width: 300px;
+            gap: 10px;
+        }
+
+        .blocks-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        /* ============================================
+           БЛОКИ В СТИЛЕ ДОМИНО (Только для левой панели!)
+           ============================================ */
+        .blocks-panel .block {
+            position: relative;
+            padding: 24px 12px 20px;
+            border-radius: 16px;
+            background: var(--bg-block);
+            border: 2px solid var(--border-medium);
+            cursor: grab;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-height: 110px;
+            justify-content: flex-start;
+        }
+        /* Точки по углам (верхние) */
+        .blocks-panel .block .domino-dot-top-left,
+        .blocks-panel .block .domino-dot-top-right {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: var(--domino-dot);
+            border-radius: 50%;
+            top: 12px;
+        }
+
+        .blocks-panel .block .domino-dot-top-left {
+            left: 12px;
+        }
+
+        .blocks-panel .block .domino-dot-top-right {
+            right: 12px;
+        }
+
+        /* Точки по углам (нижние) */
+        .blocks-panel .block .domino-dot-bottom-left,
+        .blocks-panel .block .domino-dot-bottom-right {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: var(--domino-dot);
+            border-radius: 50%;
+            bottom: 12px;
+        }
+
+        .blocks-panel .block .domino-dot-bottom-left {
+            left: 12px;
+        }
+
+        .blocks-panel .block .domino-dot-bottom-right {
+            right: 12px;
+        }
+
+        /* Контейнер для названия блока */
+        .blocks-panel .block .block-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            z-index: 1;
+            position: relative;
+            margin-top: 4px;
+        }
+
+        .blocks-panel .block-name {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--text-main);
+            text-align: center;
+        }
+
+        /* Описание блока (нижняя часть) */
+        .blocks-panel .block .block-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+            z-index: 1;
+            position: relative;
+            padding: 0 8px;
+        }
+
+        /* Эффект при наведении на блок */
+        .blocks-panel .block:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ============================================
+           ОБЫЧНЫЕ БЛОКИ (не домино) - Для рабочей области
+           ============================================ */
+        .block {
+            position: relative;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: var(--bg-block);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+            font-size: 12px;
+            display: inline-flex;
+            flex-direction: column;
+            cursor: grab;
+            user-select: none;
+            transition:
+                    transform 0.1s ease,
+                    box-shadow 0.12s ease,
+                    border-color 0.12s ease,
+                    background 0.12s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            min-width: 150px;
+            margin-bottom: 2px;
+        }
+
+        .block:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-color: var(--accent);
+            background: var(--bg-panel-soft);
+        }
+
+        .block-label {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .block-name {
+            font-weight: 500;
+        }
+
+        .block-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* ============================================
+           ПРАВАЯ ПАНЕЛЬ (РАБОЧАЯ ОБЛАСТЬ)
+           ============================================ */
+        .workspace-panel {
+            flex: 1;
+            gap: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .workspace-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .workspace-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-main);
+        }
+
+
+        /* Холст для размещения блоков */
+        .workspace-canvas {
+            flex: 1;
+            border-radius: 16px;
+            border: 1px solid var(--border-subtle);
+            background:
+                    radial-gradient(circle at 0 0, rgba(184, 149, 106, 0.05), transparent 55%),
+                    radial-gradient(circle at 100% 100%, rgba(196, 196, 176, 0.05), transparent 55%),
+                    var(--bg-panel-soft);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Рамка выделения */
+        .selection-box {
+            position: absolute;
+            border: 2px solid rgba(184, 149, 106, 0.8);
+            background: rgba(184, 149, 106, 0.15);
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* Выделенный блок */
+        .workspace-block.selected {
+            box-shadow: 0 0 0 3px rgba(184, 149, 106, 0.9);
+            border-color: rgba(184, 149, 106, 1);
+        }
+
+        /* Заглушка для пустого холста */
+        .workspace-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            pointer-events: none;
+            text-align: center;
+        }
+
+        .workspace-placeholder-title {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .workspace-placeholder-subtitle {
+            font-size: 11px;
+            color: var(--text-soft);
+            max-width: 260px;
+        }
+
+        /* ============================================
+           БЛОКИ НА ХОЛСТЕ (разные типы)
+           ============================================ */
+        .workspace-block {
+            position: absolute;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: var(--bg-block);
+            border: 2px solid var(--block-vars);
+            color: var(--text-main);
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            cursor: grab;
+            user-select: none;
+            display: inline-flex;
+            flex-direction: column;
+            min-width: 170px;
+        }
+
+        .workspace-block.block-print {
+            border-color: var(--block-io);
+        }
+
+        .workspace-block.block-if {
+            border-color: var(--block-logic);
+            border-bottom-left-radius: 1;
+            border-bottom-right-radius: 1;
+        }
+
+        .workspace-block.block-assign {
+            border-color: var(--block-vars);
+        }
+
+        .block-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            z-index: 2;
+            position: relative;
+        }
+
+        .workspace-block input,
+        .workspace-block select {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
+            border-radius: 999px;
+            padding: 2px 8px;
+            color: var(--text-main);
+            font-size: 11px;
+            min-width: 40px;
+            outline: none;
+        }
+
+        .workspace-block input:focus {
+            border-color: var(--accent);
+            background-color: var(--bg-panel-soft);
+            box-shadow: 0 0 0 2px var(--accent-soft);
+        }
+
+        /* Визуальные соединители между блоками */
+        .connector {
+            position: absolute;
+            bottom: -4px;
+            left: 15px;
+            width: 24px;
+            height: 8px;
+            background-color: inherit;
+            border-radius: 0 0 4px 4px;
+            z-index: 1;
+            border-bottom: 2px solid inherit;
+            border-left: 2px solid inherit;
+            border-right: 2px solid inherit;
+        }
+
+        .notch {
+            position: absolute;
+            top: -4px;
+            left: 15px;
+            width: 24px;
+            height: 8px;
+            background-color: var(--bg-panel-soft);
+            z-index: 1;
+            clip-path: polygon(0 100%, 40% 100%, 50% 0%, 60% 100%, 100% 100%, 100% 0, 0 0);
+        }
+
+        .block-body {
+            background-color: var(--bg-block);
+            margin: 8px -4px 4px 10px;
+            padding: 8px 4px 4px 4px;
+            border-radius: 0 6px 6px 6px;
+            min-height: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border: 1px dashed var(--border-subtle);
+        }
+
+        /* ============================================
+           ЗОНА УДАЛЕНИЯ БЛОКОВ
+           ============================================ */
+        .drop-delete-area {
+            position: absolute;
+            right: 12px;
+            bottom: 12px;
+            width: 120px;
+            height: 60px;
+            border-radius: 12px;
+            border: 2px dashed rgba(217, 108, 108, 0.5);
+            color: var(--error);
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 224, 224, 0.9);
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .drop-delete-area.active {
+            border-color: var(--error);
+            background: rgba(217, 108, 108, 0.1);
+        }
+
+        .block-error {
+            box-shadow: 0 0 0 2px var(--error) !important;
+        }
+
+        /* ============================================
+           СКРОЛЛБАРЫ
+           ============================================ */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-medium);
+            border-radius: 999px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        /* ============================================
+           АДАПТИВНОСТЬ (МОБИЛЬНЫЕ УСТРОЙСТВА)
+           ============================================ */
+        @media (max-width: 900px) {
+            .app {
+                flex-direction: column;
+            }
+            .blocks-panel {
+                width: 100%;
+                max-width: none;
+                order: 2;
+            }
+            .workspace-panel {
+                order: 1;
+            }
+        }
+        /* Переменная цвета цикла — в :root уже есть похожие, просто добавь */
+        /* (можно дописать в :root, но работает и как отдельное правило) */
+        :root { --block-loop: #9b7fc8; }
+        body.dark-theme { --block-loop: #b59ee0; }
+
+        .workspace-block.block-loop { border-color: var(--block-loop); min-width: 220px; }
+
+        /* Тело цикла — область куда перетаскивают блоки */
+        .loop-body {
+            min-height: 56px;
+            margin: 8px 0 4px 12px;
+            padding: 6px;
+            border: 2px dashed rgba(155, 127, 200, 0.5);
+            border-radius: 8px;
+            background: rgba(155, 127, 200, 0.07);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        /* Блоки внутри тела цикла — поточная вёрстка, без абсолютного позиционирования */
+        .loop-body > .workspace-block {
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            z-index: auto !important;
+            width: 100%;
+            min-width: unset;
+            margin: 0;
+        }
+
+        .loop-body-hint {
+            font-size: 10px;
+            color: var(--text-soft);
+            text-align: center;
+            padding: 6px 0;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* Подсветка тела при наведении во время drag */
+        .loop-body.drop-target {
+            background: rgba(155, 127, 200, 0.18);
+            border-color: var(--block-loop);
+        }
+    </style>
+
+
 </head>
 <body>
-
-<!-- Toolbox -->
-<div id="toolbox">
-  <div class="category">
-    <div class="category-header">Переменные</div>
-    <!-- Declare -->
-    <div class="block block-vars" data-type="decl" draggable="true">
-      <div class="block-header">
-        <span>объявить</span>
-        <input type="text" placeholder="a,b" class="input-names" style="width: 80px;">
-      </div>
-      <div class="notch"></div>
-      <div class="connector"></div>
+<header>
+    <div class="logo">
+        <button class="theme-toggle" id="theme-toggle" title="Переключить тему"></button>
+        <div class="logo-mark"></div>
+        <span> &#128526; Domino 	&#128526;</span>
     </div>
-
-    <!-- Assign -->
-    <div class="block block-vars" data-type="assign" draggable="true">
-      <div class="block-header">
-        <input type="text" placeholder="x" class="input-target" style="width: 50px;">
-        <span>:=</span>
-        <input type="text" placeholder="5" class="input-value" style="width: 60px;">
-      </div>
-      <div class="notch"></div>
-      <div class="connector"></div>
+    <div class="header-actions">
+        <button class="btn" id="reset-btn">Сбросить</button>
+        <button class="btn btn-import">Импортировать</button>
+        <button class="btn btn-primary">Выполнить программу</button>
     </div>
-  </div>
-
-  <div class="category">
-    <div class="category-header">Логика</div>
-    <!-- If Block -->
-    <div class="block block-logic" data-type="if" draggable="true">
-      <div class="block-header">
-        <span>если</span>
-        <input type="text" placeholder="x" class="input-cond-left" style="width: 40px;">
-        <select class="input-cond-op">
-          <option value=">">></option>
-          <option value="<"><</option>
-          <option value="==">=</option>
-          <option value="!=">!=</option>
-          <option value=">=">>=</option>
-          <option value="<="><=</option>
-        </select>
-        <input type="text" placeholder="y" class="input-cond-right" style="width: 40px;">
-        <span>то</span>
-      </div>
-      <div class="block-body dropzone">
-        <!-- Nested blocks go here -->
-      </div>
-      <div class="notch"></div>
-      <div class="connector" style="bottom: -4px;"></div> <!-- Adjust connector pos if needed -->
-    </div>
-  </div>
-
-  <div class="category">
-    <div class="category-header">Вывод</div>
-    <div class="block block-io" data-type="print" draggable="true">
-      <div class="block-header">
-        <span>вывести</span>
-        <input type="text" placeholder="значение" class="input-msg" style="width: 100px;">
-      </div>
-      <div class="notch"></div>
-      <div class="connector"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Main Area -->
-<div id="main-area">
-  <div id="controls">
-    <button id="btn-run">Запустить ▶</button>
-    <button id="btn-clear">Очистить 🗑</button>
-  </div>
-
-  <!-- Workspace -->
-  <div id="workspace">
-    <!-- Blocks will be dropped here -->
-  </div>
-
-  <!-- Console -->
-  <div id="console"></div>
-</div>
-
-<script>
-  /**
-   * INTERPRETER ENGINE
-   */
-  class Interpreter {
-    constructor(consoleEl) {
-      this.vars = {};
-      this.consoleEl = consoleEl;
-      this.errorBlock = null;
-    }
-
-    log(msg, isError = false) {
-      const div = document.createElement('div');
-      div.className = 'log-entry' + (isError ? ' log-error' : '');
-      div.innerText = msg;
-      this.consoleEl.appendChild(div);
-      this.consoleEl.scrollTop = this.consoleEl.scrollHeight;
-    }
-
-    clear() {
-      this.consoleEl.innerHTML = '';
-      if (this.errorBlock) {
-        this.errorBlock.classList.remove('block-error');
-        this.errorBlock = null;
-      }
-    }
-
-    run(rootElement) {
-      this.clear();
-      this.vars = {};
-      this.log("Starting execution...");
-
-      try {
-        // Find all root blocks directly inside workspace
-        const rootBlocks = Array.from(rootElement.children).filter(el => el.classList.contains('block'));
-        this.executeList(rootBlocks);
-        this.log("Finished.");
-      } catch (e) {
-        this.log("Ошибка: " + e.message, true);
-      }
-    }
-
-    executeList(blocks) {
-      for (const block of blocks) {
-        this.executeBlock(block);
-      }
-    }
-
-    executeBlock(block) {
-      // Highlight logic can be added here (e.g., briefly change color)
-      const type = block.dataset.type;
-
-      switch(type) {
-        case 'decl': this.handleDecl(block); break;
-        case 'assign': this.handleAssign(block); break;
-        case 'if': this.handleIf(block); break;
-        case 'print': this.handlePrint(block); break;
-      }
-    }
-
-    setError(block, msg) {
-      if (this.errorBlock) this.errorBlock.classList.remove('block-error');
-      block.classList.add('block-error');
-      this.errorBlock = block;
-      throw new Error(msg);
-    }
-
-    handleDecl(block) {
-      const input = block.querySelector('.input-names');
-      const names = input.value.split(',');
-      names.forEach(n => {
-        const name = n.trim();
-        if (!name) return;
-        if (!/^[a-zA-Z_]/.test(name)) this.setError(block, `Неверное имя: ${name}`);
-        this.vars[name] = 0;
-      });
-    }
-
-    handleAssign(block) {
-      const target = block.querySelector('.input-target').value.trim();
-      const expr = block.querySelector('.input-value').value;
-
-      if (!target) this.setError(block, "Пустая переменная назначения");
-      if (this.vars[target] === undefined) this.setError(block, `Переменная '${target}' не объявлена`);
-
-      const val = this.parseMath(expr, block);
-      this.vars[target] = val;
-    }
-
-    handlePrint(block) {
-      const expr = block.querySelector('.input-msg').value;
-      const val = this.parseMath(expr, block);
-      this.log(String(val));
-    }
-
-    handleIf(block) {
-      const leftExpr = block.querySelector('.input-cond-left').value;
-      const op = block.querySelector('.input-cond-op').value;
-      const rightExpr = block.querySelector('.input-cond-right').value;
-
-      const left = this.parseMath(leftExpr, block);
-      const right = this.parseMath(rightExpr, block);
-
-      let cond = false;
-      switch(op) {
-        case '>': cond = left > right; break;
-        case '<': cond = left < right; break;
-        case '==': cond = left === right; break;
-        case '!=': cond = left !== right; break;
-        case '>=': cond = left >= right; break;
-        case '<=': cond = left <= right; break;
-      }
-
-      if (cond) {
-        const body = block.querySelector('.block-body');
-        const children = Array.from(body.children).filter(el => el.classList.contains('block'));
-        this.executeList(children);
-      }
-    }
-
-    // --- Parser ---
-    parseMath(str, contextBlock) {
-      if (!str && str !== 0) return 0; // Handle empty input gracefully
-
-      // Tokenizer
-      const tokens = [];
-      const regex = /\s*([0-9]+)|([a-zA-Z_][a-zA-Z0-9_]*)|(\+|\-|\*|\/|\%|\(|\))/g;
-      let match;
-      while ((match = regex.exec(str)) != null) {
-        if (match[1]) tokens.push({type: 'NUM', val: parseInt(match[1])});
-        else if (match[2]) tokens.push({type: 'VAR', val: match[2]});
-        else if (match[3]) tokens.push({type: 'OP', val: match[3]});
-      }
-
-      let pos = 0;
-      const peek = () => tokens[pos];
-      const consume = () => tokens[pos++];
-
-      const parseExpr = () => {
-        let res = parseTerm();
-        while (peek() && peek().type === 'OP' && (peek().val === '+' || peek().val === '-')) {
-          const op = consume().val;
-          const right = parseTerm();
-          if (op === '+') res += right;
-          else res -= right;
-        }
-        return res;
-      };
-
-      const parseTerm = () => {
-        let res = parseFactor();
-        while (peek() && peek().type === 'OP' && (peek().val === '*' || peek().val === '/' || peek().val === '%')) {
-          const op = consume().val;
-          const right = parseFactor();
-          if (op === '*') res *= right;
-          else if (op === '/') {
-            if (right === 0) this.setError(contextBlock, "Деление на 0");
-            res = Math.floor(res / right);
-          }
-          else res %= right;
-        }
-        return res;
-      };
-
-      const parseFactor = () => {
-        const t = peek();
-        if (!t) this.setError(contextBlock, `Ожидается число или переменная в: "${str}"`);
-
-        if (t.type === 'NUM') {
-          consume();
-          return t.val;
-        }
-        if (t.type === 'VAR') {
-          consume();
-          if (this.vars[t.val] === undefined) this.setError(contextBlock, `Переменная '${t.val}' не объявлена`);
-          return this.vars[t.val];
-        }
-        if (t.type === 'OP' && t.val === '(') {
-          consume(); // (
-          const res = parseExpr();
-          if (!peek() || peek().val !== ')') this.setError(contextBlock, "Пропущена скобка )");
-          consume(); // )
-          return res;
-        }
-
-        this.setError(contextBlock, `Синтаксическая ошибка: ${t.val}`);
-      };
-
-      try {
-        const result = parseExpr();
-        // Check for trailing garbage
-        if (peek()) this.setError(contextBlock, `Лишние символы после выражения`);
-        return result;
-      } catch(e) {
-        throw e;
-      }
-    }
-  }
-
-  /**
-   * UI & DRAG AND DROP
-   */
-  const workspace = document.getElementById('workspace');
-  const consoleEl = document.getElementById('console');
-  const engine = new Interpreter(consoleEl);
-
-  let draggedEl = null;
-  let ghost = null;
-  let dragOffsetX = 0, dragOffsetY = 0;
-
-  // Helper to check if element is a valid drop container (workspace or body)
-  function isContainer(el) {
-    return el.id === 'workspace' || el.classList.contains('block-body');
-  }
-
-  // Mousedown on a block (from toolbox or workspace)
-  document.addEventListener('mousedown', e => {
-    const target = e.target.closest('.block');
-    // Don't drag if clicking inputs/selects
-    if (!target || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-
-    e.preventDefault();
-
-    // Create clone
-    draggedEl = target.cloneNode(true);
-    draggedEl.classList.add('dragging'); // Class for styling while dragging
-
-    // If dragging from toolbox, keep original.
-    // If dragging from workspace, we want to 'move' it, so we hide original and show ghost.
-    // Actually, simpler: Always clone.
-    // If source is workspace, we remove source on mouseup.
-
-    const rect = target.getBoundingClientRect();
-    dragOffsetX = e.clientX - rect.left;
-    dragOffsetY = e.clientY - rect.top;
-
-    // Style the clone
-    draggedEl.style.position = 'absolute';
-    draggedEl.style.width = rect.width + 'px';
-    draggedEl.style.left = rect.left + 'px';
-    draggedEl.style.top = rect.top + 'px';
-    draggedEl.style.zIndex = 1000;
-    draggedEl.style.pointerEvents = 'none';
-
-    document.body.appendChild(draggedEl);
-
-    // If moving from workspace, mark original for removal
-    if (target.parentElement.id === 'workspace' || target.parentElement.classList.contains('block-body')) {
-      target.classList.add('marked-for-removal');
-    }
-  });
-
-  document.addEventListener('mousemove', e => {
-    if (!draggedEl) return;
-
-    draggedEl.style.left = (e.clientX - dragOffsetX) + 'px';
-    draggedEl.style.top = (e.clientY - dragOffsetY) + 'px';
-
-    // Highlight potential drop targets
-    // Hide dragged element temporarily to find element below
-    draggedEl.style.display = 'none';
-    const below = document.elementFromPoint(e.clientX, e.clientY);
-    draggedEl.style.display = '';
-
-    // Remove old highlights
-    document.querySelectorAll('.drop-active, .drop-target-body').forEach(el => {
-      el.classList.remove('drop-active', 'drop-target-body');
-    });
-
-    if (!below) return;
-
-    // Cases for dropping:
-    // 1. Inside a body (If block)
-    const bodyContainer = below.closest('.block-body');
-    if (bodyContainer) {
-      bodyContainer.classList.add('drop-target-body');
-      return;
-    }
-
-    // 2. Top or Bottom of a block
-    const targetBlock = below.closest('.block:not(.dragging)');
-    if (targetBlock && targetBlock.parentElement && isContainer(targetBlock.parentElement)) {
-      const rect = targetBlock.getBoundingClientRect();
-      const midY = rect.top + rect.height / 2;
-
-      // If mouse is in top half -> Connect Before
-      // If mouse is in bottom half -> Connect After
-      if (e.clientY < midY) {
-        targetBlock.classList.add('drop-active'); // Visual hint top
-      } else {
-        targetBlock.classList.add('drop-active'); // Visual hint bottom
-      }
-    }
-  });
-
-  document.addEventListener('mouseup', e => {
-    if (!draggedEl) return;
-
-    // Identify drop target
-    draggedEl.style.display = 'none';
-    const below = document.elementFromPoint(e.clientX, e.clientY);
-    draggedEl.style.display = '';
-
-    // Remove old "marked" elements
-    document.querySelectorAll('.marked-for-removal').forEach(el => el.remove());
-
-    let dropped = false;
-
-    if (below) {
-      // Case 1: Drop inside IF body
-      const body = below.closest('.block-body');
-      if (body) {
-        // Clean up absolute positioning styles from drag
-        draggedEl.style.position = '';
-        draggedEl.style.width = '';
-        draggedEl.style.left = '';
-        draggedEl.style.top = '';
-        draggedEl.style.zIndex = '';
-        draggedEl.style.pointerEvents = '';
-        draggedEl.classList.remove('dragging');
-
-        body.appendChild(draggedEl);
-        dropped = true;
-      } else {
-        // Case 2: Connect to another block or workspace
-        const target = below.closest('.block:not(.dragging)');
-        const container = below.closest('#workspace') || (target ? target.parentElement : null);
-
-        if (container) {
-          draggedEl.style.position = '';
-          draggedEl.style.width = '';
-          draggedEl.style.left = '';
-          draggedEl.style.top = '';
-          draggedEl.style.zIndex = '';
-          draggedEl.style.pointerEvents = '';
-          draggedEl.classList.remove('dragging');
-
-          if (target) {
-            const rect = target.getBoundingClientRect();
-            if (e.clientY < rect.top + rect.height / 2) {
-              container.insertBefore(draggedEl, target);
-            } else {
-              container.insertBefore(draggedEl, target.nextSibling);
-            }
-          } else {
-            container.appendChild(draggedEl);
-          }
-          dropped = true;
-        }
-      }
-    }
-
-    if (!dropped) {
-      // Dropped in void, just remove clone
-      draggedEl.remove();
-    }
-
-    // Cleanup visuals
-    document.querySelectorAll('.drop-active, .drop-target-body').forEach(el => {
-      el.classList.remove('drop-active', 'drop-target-body');
-    });
-
-    draggedEl = null;
-  });
-
-  // Buttons
-  document.getElementById('btn-run').addEventListener('click', () => {
-    engine.run(workspace);
-  });
-
-  document.getElementById('btn-clear').addEventListener('click', () => {
-    workspace.innerHTML = '';
-    consoleEl.innerHTML = '';
-  });
-
-</script>
+</header>
+
+<main class="app">
+    <section class="panel blocks-panel">
+        <div class="panel-header-chip">
+            <span class="panel-header-chip-dot"></span>
+            <span class="panel-header-chip-label">Блоки</span>
+        </div>
+
+        <div class="block" data-block-type="print">
+            <div class="domino-dot-top-left"></div>
+            <div class="domino-dot-top-right"></div>
+            <div class="block-label">
+                <span class="block-name">Печать</span>
+            </div>
+            <div class="block-meta">Выводит текст в консоль</div>
+            <div class="domino-dot-bottom-left"></div>
+            <div class="domino-dot-bottom-right"></div>
+        </div>
+
+        <div class="block" data-block-type="if">
+            <div class="domino-dot-top-left"></div>
+            <div class="domino-dot-top-right"></div>
+            <div class="block-label">
+                <span class="block-name">Если</span>
+            </div>
+            <div class="block-meta">Условное ветвление</div>
+            <div class="domino-dot-bottom-left"></div>
+            <div class="domino-dot-bottom-right"></div>
+        </div>
+
+        <div class="block" data-block-type="assign">
+            <div class="domino-dot-top-left"></div>
+            <div class="domino-dot-top-right"></div>
+            <div class="block-label">
+                <span class="block-name">Присвоение</span>
+            </div>
+            <div class="block-meta">x = выражение</div>
+            <div class="domino-dot-bottom-left"></div>
+            <div class="domino-dot-bottom-right"></div>
+        </div>
+
+        <div class="block" data-block-type="loop">
+            <div class="domino-dot-top-left"></div>
+            <div class="domino-dot-top-right"></div>
+            <div class="block-label">
+                <span class="block-name">Цикл</span>
+            </div>
+            <div class="block-meta">пока условие истинно</div>
+            <div class="domino-dot-bottom-left"></div>
+            <div class="domino-dot-bottom-right"></div>
+        </div>
+    </section>
+
+
+    <section class="panel workspace-panel">
+        <div class="workspace-header">
+            <div class="workspace-title">
+                <span class="workspace-title-dot"></span>
+                <span>Рабочее пространство</span>
+            </div>
+            <div class="workspace-toolbar">
+                <!-- кнопки сетки убрали -->
+            </div>
+        </div>
+
+        <div class="workspace-canvas" id="workspace-canvas">
+            <div class="workspace-placeholder" id="workspace-placeholder">
+                <div class="workspace-placeholder-title">
+                    Перетащи блок из панели слева
+                </div>
+                <div class="workspace-placeholder-subtitle">
+                    Блоки можно свободно двигать и вкладывать внутрь if.
+                </div>
+            </div>
+
+            <div class="drop-delete-area" id="delete-area">
+                Удалить блок
+            </div>
+        </div>
+    </section>
+</main>
 </body>
 </html>
