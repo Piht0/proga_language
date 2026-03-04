@@ -226,7 +226,7 @@ function createWorkspaceBlock(type) {
     return block;
 }
 
-function findSnapTarget(block) {
+function findSnaцpTarget(block) {
     const blocks = Array.from(canvas.querySelectorAll('.workspace-block')).filter(b => b !== block);
     if (blocks.length === 0) return null;
 
@@ -321,6 +321,8 @@ document.addEventListener('mousedown', (e) => {
         block.style.top = y + 'px';
 
         draggedEl = block;
+        dragOffsetX = block.offsetWidth / 2;
+        dragOffsetY = block.offsetHeight / 2;
     } else {// Если блок находится внутри тела цикла — вытащить его на холст
         const parentLoopBody = wsBlock.closest('.loop-body');
         if (parentLoopBody) {
