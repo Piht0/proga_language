@@ -1,3 +1,25 @@
+const themeToggleBtn = document.getElementById('theme-toggle');
+const body = document.body;
+
+// Проверяем сохранённую тему в localStorage
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'dark') {
+    body.classList.add('dark-theme');
+}
+
+// Обработчик клика по кнопке темы
+themeToggleBtn.addEventListener('click', () => {
+    body.classList.toggle('dark-theme');
+
+    // Сохраняем выбор пользователя
+    if (body.classList.contains('dark-theme')) {
+        localStorage.setItem('theme', 'dark');
+    } else {
+        localStorage.setItem('theme', 'light');
+    }
+});
+
+
 const blocksPanel = document.querySelector('.blocks-panel');
 const canvas = document.getElementById('workspace-canvas');
 const placeholder = document.getElementById('workspace-placeholder');
@@ -25,7 +47,7 @@ let groupDragOffsetY = 0;
 // Подсветка панели блоков при наведении
 function updatePanelHighlight(e) {
     if (!draggedEl) return;
-    
+
     const panelRect = blocksPanel.getBoundingClientRect();
     const isInPanel = (
         e.clientX >= panelRect.left &&
@@ -33,7 +55,7 @@ function updatePanelHighlight(e) {
         e.clientY >= panelRect.top &&
         e.clientY <= panelRect.bottom
     );
-    
+
     if (isInPanel) {
         blocksPanel.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.7)';
         blocksPanel.style.borderColor = 'rgba(239, 68, 68, 0.9)';
@@ -56,26 +78,26 @@ function clearSelection() {
 
 function selectBlocksInRect(rect) {
     clearSelection();
-    
+
     const canvasRect = canvas.getBoundingClientRect();
     const blocks = Array.from(canvas.querySelectorAll('.workspace-block'));
-    
+
     for (const block of blocks) {
         const blockRect = block.getBoundingClientRect();
-        
+
         // Проверяем, пересекается ли блок с рамкой выделения
         const blockLeft = blockRect.left - canvasRect.left;
         const blockTop = blockRect.top - canvasRect.top;
         const blockRight = blockLeft + block.offsetWidth;
         const blockBottom = blockTop + block.offsetHeight;
-        
+
         const intersects = !(
             blockRight < rect.left ||
             blockLeft > rect.right ||
             blockBottom < rect.top ||
             blockTop > rect.bottom
         );
-        
+
         if (intersects) {
             block.classList.add('selected');
             selectedBlocks.push(block);
@@ -85,20 +107,20 @@ function selectBlocksInRect(rect) {
 
 function getSelectedBlocksBounds() {
     if (selectedBlocks.length === 0) return null;
-    
+
     const canvasRect = canvas.getBoundingClientRect();
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    
+
     for (const block of selectedBlocks) {
         const x = parseFloat(block.style.left) || 0;
         const y = parseFloat(block.style.top) || 0;
-        
+
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
         maxX = Math.max(maxX, x + block.offsetWidth);
         maxY = Math.max(maxY, y + block.offsetHeight);
     }
-    
+
     return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
 }
 
@@ -137,7 +159,7 @@ function createWorkspaceBlock(type) {
     `;
     } else if (type === 'if') {
         // пока не используем в минимальном варианте, но блок может существовать
-        block.classList.add('block-if');
+        block.classList.add('block-if')
         block.dataset.type = 'if';
         block.innerHTML = `
       <div class="block-header">
@@ -214,12 +236,12 @@ document.addEventListener('mousedown', (e) => {
     // Если клик по пустому месту в canvas — начинаем выделение рамкой или снимаем выделение
     if (!paletteBlock && !wsBlock && e.target.closest('.workspace-canvas')) {
         e.preventDefault();
-        
+
         const canvasRect = canvas.getBoundingClientRect();
         isSelecting = true;
         selectionStartX = e.clientX - canvasRect.left;
         selectionStartY = e.clientY - canvasRect.top;
-        
+
         // Создаём рамку выделения
         selectionBox = document.createElement('div');
         selectionBox.classList.add('selection-box');
@@ -228,7 +250,7 @@ document.addEventListener('mousedown', (e) => {
         selectionBox.style.width = '0';
         selectionBox.style.height = '0';
         canvas.appendChild(selectionBox);
-        
+
         // Снимаем предыдущее выделение, если нет Ctrl
         if (!e.ctrlKey && !e.metaKey) {
             clearSelection();
@@ -249,7 +271,7 @@ document.addEventListener('mousedown', (e) => {
     if (paletteBlock) {
         // Снимаем выделение при создании нового блока
         clearSelection();
-        
+
         const type = paletteBlock.dataset.blockType;
         const block = createWorkspaceBlock(type);
         canvas.appendChild(block);
@@ -264,7 +286,7 @@ document.addEventListener('mousedown', (e) => {
     } else {
         // Клик по блоку
         draggedEl = wsBlock;
-        
+
         // Если зажат Ctrl — переключаем выделение блока
         if (e.ctrlKey || e.metaKey) {
             if (wsBlock.classList.contains('selected')) {
@@ -277,12 +299,12 @@ document.addEventListener('mousedown', (e) => {
             draggedEl = null; // Не тащим при Ctrl+клике
             return;
         }
-        
+
         // Если блок не выделен — снимаем выделение с остальных
         if (!wsBlock.classList.contains('selected')) {
             clearSelection();
         }
-        
+
         // Если есть выделенные блоки — тащим группу
         if (selectedBlocks.length > 0 && wsBlock.classList.contains('selected')) {
             isDraggingGroup = true;
@@ -308,19 +330,19 @@ document.addEventListener('mousemove', (e) => {
         const canvasRect = canvas.getBoundingClientRect();
         const currentX = e.clientX - canvasRect.left;
         const currentY = e.clientY - canvasRect.top;
-        
+
         const left = Math.min(selectionStartX, currentX);
         const top = Math.min(selectionStartY, currentY);
         const width = Math.abs(currentX - selectionStartX);
         const height = Math.abs(currentY - selectionStartY);
-        
+
         selectionBox.style.left = left + 'px';
         selectionBox.style.top = top + 'px';
         selectionBox.style.width = width + 'px';
         selectionBox.style.height = height + 'px';
         return;
     }
-    
+
     if (!draggedEl) return;
 
     const canvasRect = canvas.getBoundingClientRect();
@@ -329,27 +351,27 @@ document.addEventListener('mousemove', (e) => {
     if (isDraggingGroup && selectedBlocks.length > 0) {
         const groupX = e.clientX - canvasRect.left - groupDragOffsetX;
         const groupY = e.clientY - canvasRect.top - groupDragOffsetY;
-        
+
         const bounds = getSelectedBlocksBounds();
         if (bounds) {
             const deltaX = groupX - bounds.minX;
             const deltaY = groupY - bounds.minY;
-            
+
             for (const block of selectedBlocks) {
                 let x = parseFloat(block.style.left) || 0;
                 let y = parseFloat(block.style.top) || 0;
-                
+
                 x += deltaX;
                 y += deltaY;
-                
+
                 x = Math.max(0, Math.min(x, canvasRect.width - block.offsetWidth));
                 y = Math.max(0, Math.min(y, canvasRect.height - block.offsetHeight));
-                
+
                 block.style.left = x + 'px';
                 block.style.top = y + 'px';
             }
         }
-        
+
         // Подсветка панели блоков
         updatePanelHighlight(e);
 
@@ -400,24 +422,24 @@ document.addEventListener('mouseup', (e) => {
         const canvasRect = canvas.getBoundingClientRect();
         const currentX = e.clientX - canvasRect.left;
         const currentY = e.clientY - canvasRect.top;
-        
+
         const left = Math.min(selectionStartX, currentX);
         const top = Math.min(selectionStartY, currentY);
         const width = Math.abs(currentX - selectionStartX);
         const height = Math.abs(currentY - selectionStartY);
-        
+
         // Выделяем блоки в прямоугольнике
         if (width > 5 && height > 5) { // Минимальный размер, чтобы не выделять случайно
             selectBlocksInRect({ left, top, right: left + width, bottom: top + height });
         }
-        
+
         // Удаляем рамку
         selectionBox.remove();
         selectionBox = null;
         isSelecting = false;
         return;
     }
-    
+
     if (!draggedEl) return;
 
     // Завершение перемещения группы
@@ -462,7 +484,7 @@ document.addEventListener('mouseup', (e) => {
 
         clearPanelHighlight();
         deleteArea.classList.remove('active');
-        
+
         // Применяем snap к первому блоку группы
         const snap = findSnapTarget(draggedEl);
         if (snap) {
@@ -583,14 +605,14 @@ consolePane.style.bottom = '12px';
 consolePane.style.width = '320px';
 consolePane.style.maxHeight = '180px';
 consolePane.style.overflowY = 'auto';
-consolePane.style.background = 'rgba(15,23,42,0.96)';
-consolePane.style.border = '1px solid rgba(31,41,55,1)';
+consolePane.style.background = 'var(--bg-panel)';
+consolePane.style.border = '1px solid var(--border-subtle)';
 consolePane.style.borderRadius = '10px';
 consolePane.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
 consolePane.style.fontSize = '11px';
 consolePane.style.padding = '8px';
-consolePane.style.boxShadow = '0 18px 40px rgba(0,0,0,0.9)';
-consolePane.style.color = '#e5e7eb';
+consolePane.style.boxShadow = '0 18px 40px rgba(0,0,0,0.4)';
+consolePane.style.color = 'var(--text-main)';
 consolePane.style.pointerEvents = 'auto';
 consolePane.style.zIndex = '9999';
 consolePane.textContent = 'Консоль: выполните программу.';
@@ -601,10 +623,10 @@ function logToConsole(msg, isError = false) {
     line.textContent = msg;
     line.style.marginBottom = '2px';
     if (isError) {
-        line.style.color = '#f97373';
+        line.style.color = 'var(--error)';
         line.style.fontWeight = '600';
     } else {
-        line.style.color = '#a5b4fc';
+        line.style.color = 'var(--text-muted)';
     }
     consolePane.appendChild(line);
     consolePane.scrollTop = consolePane.scrollHeight;
@@ -614,50 +636,207 @@ function clearConsole() {
     consolePane.textContent = '';
 }
 
-// Упрощённый парсер выражений: только числа и переменные + операции без приоритета
-function evalExpression(expr, vars) {
-    if (!expr || expr.trim() === '') return 0;
+// ============================================
+// ПАРСЕР МАТЕМАТИЧЕСКИЧЕСКИХ ВЫРАЖЕНИЙ
+// ============================================
 
-    // разбиваем на токены по пробелам
-    const tokens = expr.trim().split(/\s+/);
+function calculate(expression, vars) {
+    expression = expression.replace(/\s/g, '');
+    expression = substituteVariables(expression, vars);
 
-    let result = null;
-    let currentOp = '+';
+    // Сначала обрабатываем скобки
+    expression = parseeval(expression);
 
-    function getValue(token) {
-        if (/^-?\d+$/.test(token)) {
-            return parseInt(token, 10);
-        }
-        if (vars[token] === undefined) {
-            throw new Error(`Переменная '${token}' не объявлена`);
-        }
-        return vars[token];
+    // Потом умножение/деление (слева направо)
+    expression = parsemuldiv(expression);
+
+    // В конце сложение/вычитание
+    expression = parseadd(expression);
+
+    // Возвращаем число
+    return parseFloat(expression);
+}
+
+function substituteVariables(expr, vars) {
+    // Заменяем имена переменных на их значения
+    // Сортируем по длине (сначала длинные), чтобы 'ab' не заменилось раньше 'a'
+    const varNames = Object.keys(vars).sort((a, b) => b.length - a.length);
+
+    for (const name of varNames) {
+        // Глобальная замена, учитываем отрицательные значения
+        const regex = new RegExp('(?<![a-zA-Z0-9_])' + name + '(?![a-zA-Z0-9_])', 'g');
+        expr = expr.replace(regex, vars[name]);
     }
 
-    for (const token of tokens) {
-        if (['+', '-', '*', '/', '%'].includes(token)) {
-            currentOp = token;
+    return expr;
+}
+
+function parseeval(line) {
+    var k = 1;
+    do {
+        var openskoba = line.lastIndexOf("(");
+        if (openskoba < 0) {
+            k = 0;
         } else {
-            const value = getValue(token);
-            if (result === null) {
-                result = value;
-            } else {
-                if (currentOp === '+') result += value;
-                else if (currentOp === '-') result -= value;
-                else if (currentOp === '*') result *= value;
-                else if (currentOp === '/') {
-                    if (value === 0) throw new Error('Деление на 0');
-                    result = Math.trunc(result / value);
-                } else if (currentOp === '%') {
-                    if (value === 0) throw new Error('Остаток от деления на 0');
-                    result = result % value;
+            var closeskoba = line.indexOf(")", openskoba);
+            var inside = line.slice(openskoba + 1, closeskoba);
+            var step1 = parsemuldiv(inside);
+            var step2 = parseadd(step1);
+            line = line.substr(0, openskoba) +
+                step2.toString() +
+                line.substr(closeskoba + 1);
+        }
+    } while (k == 1);
+
+    return line;
+}
+
+function parsemuldiv(line) {
+    var k = 1;
+
+    do {
+        var firstMul = line.indexOf("*");
+        var firstDiv = line.indexOf("/");
+        var firstOp;
+
+        if (firstMul == -1 && firstDiv == -1) {
+            firstOp = -1;
+        } else if (firstMul == -1) {
+            firstOp = firstDiv;
+        } else if (firstDiv == -1) {
+            firstOp = firstMul;
+        } else {
+            firstOp = Math.min(firstMul, firstDiv);
+        }
+
+        if (firstOp == -1) {
+            k = 0;
+        } else {
+            var operator = line.charAt(firstOp);
+
+            // Поиск левого операнда
+            var z = firstOp;
+            var beforez;
+
+            do {
+                beforez = z - 1;
+                if (beforez < 0 ||
+                    line.charAt(beforez) == "*" ||
+                    line.charAt(beforez) == "/" ||
+                    line.charAt(beforez) == "-" ||
+                    line.charAt(beforez) == "+") {
+                    z = -2;
                 }
+                z = z - 1;
+            } while (z > -2);
+
+            var op1;
+            if (beforez < 0) {
+                op1 = line.slice(0, firstOp);
+            } else {
+                op1 = line.slice(beforez + 1, firstOp);
+            }
+
+            // Поиск правого операнда
+            z = firstOp;
+            var afterz;
+
+            do {
+                afterz = z + 1;
+                if (afterz >= line.length ||
+                    line.charAt(afterz) == "*" ||
+                    line.charAt(afterz) == "/" ||
+                    line.charAt(afterz) == "-" ||
+                    line.charAt(afterz) == "+") {
+                    z = line.length + 1;
+                }
+                z = z + 1;
+            } while (z < line.length + 1);
+
+            var op2;
+            if (afterz >= line.length) {
+                op2 = line.slice(firstOp + 1, line.length);
+            } else {
+                op2 = line.slice(firstOp + 1, afterz);
+            }
+
+            // Вычисление
+            var res;
+            if (operator == '*') {
+                res = parseFloat(op1) * parseFloat(op2);
+            } else {
+                if (parseFloat(op2) === 0) {
+                    throw new Error("Деление на ноль");
+                }
+                res = parseFloat(op1) / parseFloat(op2);
+            }
+
+            // Замена в строке
+            if (beforez < 0) {
+                line = res.toString() + line.substr(afterz);
+            } else {
+                line = line.substr(0, beforez + 1) +
+                    res.toString() +
+                    line.substr(afterz);
             }
         }
-    }
+    } while (k == 1);
 
-    if (result === null) return 0;
-    return result;
+    return line;
+}
+
+function parseadd(line) {
+    do {
+        var before = 1;
+        if (line.charAt(0) == "-") {
+            before = -1;
+            line = line.slice(1);
+        }
+
+        var kx = line.indexOf("+");
+        var ky = line.indexOf("-");
+
+        if (kx == -1 && ky == -1) {
+            line = (before * parseFloat(line)).toString();
+            break;
+        } else {
+            var lastz, attr;
+
+            if ((kx > 0 && kx < ky) || (kx > 0 && ky == -1)) {
+                lastz = kx;
+                attr = 1;
+            }
+            if ((ky > 0 && ky < kx) || (ky > 0 && kx == -1)) {
+                lastz = ky;
+                attr = -1;
+            }
+
+            var op1 = before * parseFloat(line.slice(0, lastz));
+
+            var arg = lastz + 1;
+            do {
+                if (arg >= line.length ||
+                    line.charAt(arg) == "+" ||
+                    line.charAt(arg) == "-") {
+                    break;
+                }
+                arg = arg + 1;
+            } while (arg <= line.length);
+
+            var op2 = attr * parseFloat(line.slice(lastz + 1, arg));
+            var res = op1 + op2;
+
+            line = res.toString() + line.slice(arg);
+        }
+    } while (true);
+
+    return line;
+}
+
+// Обёртка для совместимости с текущим API
+function evalExpression(expr, vars) {
+    if (!expr || expr.trim() === '') return 0;
+    return calculate(expr, vars);
 }
 
 // Запуск программы
