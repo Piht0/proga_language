@@ -226,7 +226,7 @@ function createWorkspaceBlock(type) {
     return block;
 }
 
-function findSnaцpTarget(block) {
+function findSnapTarget(block) {
     const blocks = Array.from(canvas.querySelectorAll('.workspace-block')).filter(b => b !== block);
     if (blocks.length === 0) return null;
 
@@ -321,17 +321,18 @@ document.addEventListener('mousedown', (e) => {
         block.style.top = y + 'px';
 
         draggedEl = block;
-        dragOffsetX = block.offsetWidth / 2;
-        dragOffsetY = block.offsetHeight / 2;
-    } else {// Если блок находится внутри тела цикла — вытащить его на холст
+    } else {
+        // Если блок находится внутри тела цикла — вытащить его на холст
         const parentLoopBody = wsBlock.closest('.loop-body');
         if (parentLoopBody) {
             const blockRect = wsBlock.getBoundingClientRect();
             const canvasRect = canvas.getBoundingClientRect();
-            wsBlock.style.position = 'absolute';
+            // Сбрасываем стили, переопределяя !important из CSS
+            wsBlock.style.setProperty('position', 'absolute', 'important');
+            wsBlock.style.setProperty('left', (blockRect.left - canvasRect.left) + 'px', 'important');
+            wsBlock.style.setProperty('top', (blockRect.top - canvasRect.top) + 'px', 'important');
             wsBlock.style.width = '';
-            wsBlock.style.left = (blockRect.left - canvasRect.left) + 'px';
-            wsBlock.style.top  = (blockRect.top  - canvasRect.top)  + 'px';
+            wsBlock.style.zIndex = '';
             canvas.appendChild(wsBlock);
             updateLoopBodyHints();
         }
@@ -518,6 +519,7 @@ document.addEventListener('mouseup', (e) => {
             e.clientY >= panelRect.top &&
             e.clientY <= panelRect.bottom
         );
+
         if (isInPanel) {
             // Удаляем все выделенные блоки
             selectedBlocks.forEach(block => block.remove());
@@ -528,6 +530,7 @@ document.addEventListener('mouseup', (e) => {
             updatePlaceholderVisibility();
             return;
         }
+
         const deleteRect = deleteArea.getBoundingClientRect();
         const inDelete =
             e.clientX >= deleteRect.left &&
@@ -584,6 +587,7 @@ document.addEventListener('mouseup', (e) => {
         updatePlaceholderVisibility();
         return;
     }
+
     // Проверяем: блок отпущен над телом цикла?
     const loopBodies = Array.from(canvas.querySelectorAll('.loop-body'));
     let nestTarget = null;
