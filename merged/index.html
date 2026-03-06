@@ -28,6 +28,7 @@
             --block-vars: #7cb38b;
             --block-logic: #d4a853;
             --block-io: #6b9ac4;
+            --block-loop: #9b7fc8;
             --error: #d96c6c;
 
             --domino-dot: #7a7168;
@@ -54,6 +55,7 @@
             --accent: #d4b085;
             --accent-soft: rgba(212, 176, 133, 0.15);
 
+            --block-loop: #b59ee0;
             --domino-dot: #9c958e;
 
             --icon-theme: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e6e2dd' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='5'/%3E%3Cpath d='M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42'/%3E%3C/svg%3E");
@@ -530,6 +532,11 @@
             border-color: var(--block-vars);
         }
 
+        .workspace-block.block-loop {
+            border-color: var(--block-loop);
+            min-width: 220px;
+        }
+
         .block-header {
             display: flex;
             align-items: center;
@@ -592,6 +599,45 @@
             flex-direction: column;
             gap: 4px;
             border: 1px dashed var(--border-subtle);
+        }
+
+        /* Тело цикла — область куда перетаскивают блоки */
+        .loop-body {
+            min-height: 56px;
+            margin: 8px 0 4px 12px;
+            padding: 6px;
+            border: 2px dashed rgba(155, 127, 200, 0.5);
+            border-radius: 8px;
+            background: rgba(155, 127, 200, 0.07);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        /* Блоки внутри тела цикла — поточная вёрстка, без абсолютного позиционирования */
+        .loop-body > .workspace-block {
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            z-index: auto !important;
+            width: 100%;
+            min-width: unset;
+            margin: 0;
+        }
+
+        .loop-body-hint {
+            font-size: 10px;
+            color: var(--text-soft);
+            text-align: center;
+            padding: 6px 0;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        /* Подсветка тела при наведении во время drag */
+        .loop-body.drop-target {
+            background: rgba(155, 127, 200, 0.18);
+            border-color: var(--block-loop);
         }
 
         /* ============================================
@@ -680,15 +726,14 @@
             <span class="panel-header-chip-dot"></span>
             <span class="panel-header-chip-label">Блоки</span>
         </div>
+
         <div class="block" data-block-type="print">
             <div class="domino-dot-top-left"></div>
             <div class="domino-dot-top-right"></div>
             <div class="block-label">
                 <span class="block-name">Печать</span>
             </div>
-            <div class="block-meta">
-                Выводит текст в консоль
-            </div>
+            <div class="block-meta">Выводит текст в консоль</div>
             <div class="domino-dot-bottom-left"></div>
             <div class="domino-dot-bottom-right"></div>
         </div>
@@ -699,9 +744,7 @@
             <div class="block-label">
                 <span class="block-name">Если</span>
             </div>
-            <div class="block-meta">
-                Условное ветвление
-            </div>
+            <div class="block-meta">Условное ветвление</div>
             <div class="domino-dot-bottom-left"></div>
             <div class="domino-dot-bottom-right"></div>
         </div>
@@ -712,13 +755,23 @@
             <div class="block-label">
                 <span class="block-name">Присвоение</span>
             </div>
-            <div class="block-meta">
-                x = выражение
+            <div class="block-meta">x = выражение</div>
+            <div class="domino-dot-bottom-left"></div>
+            <div class="domino-dot-bottom-right"></div>
+        </div>
+
+        <div class="block" data-block-type="loop">
+            <div class="domino-dot-top-left"></div>
+            <div class="domino-dot-top-right"></div>
+            <div class="block-label">
+                <span class="block-name">Цикл</span>
             </div>
+            <div class="block-meta">пока условие истинно</div>
             <div class="domino-dot-bottom-left"></div>
             <div class="domino-dot-bottom-right"></div>
         </div>
     </section>
+
 
     <section class="panel workspace-panel">
         <div class="workspace-header">

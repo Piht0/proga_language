@@ -128,7 +128,21 @@ function updatePlaceholderVisibility() {
     const hasBlocks = canvas.querySelectorAll('.workspace-block').length > 0;
     placeholder.style.display = hasBlocks ? 'none' : 'flex';
 }
-
+// Обновляет подсказку внутри тела цикла
+function updateLoopBodyHints() {
+    canvas.querySelectorAll('.loop-body').forEach(body => {
+        const hasBlocks = body.querySelector('.workspace-block');
+        let hint = body.querySelector('.loop-body-hint');
+        if (hasBlocks) {
+            if (hint) hint.remove();
+        } else if (!hint) {
+            hint = document.createElement('div');
+            hint.className = 'loop-body-hint';
+            hint.textContent = 'Перетащи блоки сюда';
+            body.appendChild(hint);
+        }
+    });
+}
 // Фабрика workspace-блоков
 function createWorkspaceBlock(type) {
     const block = document.createElement('div');
@@ -138,48 +152,72 @@ function createWorkspaceBlock(type) {
         block.classList.add('block-print');
         block.dataset.type = 'print';
         block.innerHTML = `
-      <div class="block-header">
-        <span>вывести</span>
-        <input type="text" placeholder="значение" class="input-msg" style="width: 100px;">
-      </div>
-      <div class="connector"></div>
-      <div class="notch"></div>
-    `;
+          <div class="block-header">
+            <span>вывести</span>
+            <input type="text" placeholder="значение" class="input-msg" style="width: 100px;">
+          </div>
+          <div class="connector"></div>
+          <div class="notch"></div>
+        `;
     } else if (type === 'assign') {
         block.classList.add('block-assign');
         block.dataset.type = 'assign';
         block.innerHTML = `
-      <div class="block-header">
-        <input type="text" placeholder="x" class="input-target" style="width: 50px;">
-        <span>:=</span>
-        <input type="text" placeholder="5" class="input-value" style="width: 80px;">
-      </div>
-      <div class="connector"></div>
-      <div class="notch"></div>
-    `;
+          <div class="block-header">
+            <input type="text" placeholder="x" class="input-target" style="width: 50px;">
+            <span>:=</span>
+            <input type="text" placeholder="5" class="input-value" style="width: 80px;">
+          </div>
+          <div class="connector"></div>
+          <div class="notch"></div>
+        `;
     } else if (type === 'if') {
         // пока не используем в минимальном варианте, но блок может существовать
         block.classList.add('block-if')
         block.dataset.type = 'if';
         block.innerHTML = `
-      <div class="block-header">
-        <span>если</span>
-        <input type="text" placeholder="x" class="input-cond-left" style="width: 40px;">
-        <select class="input-cond-op">
-          <option value=">">></option>
-          <option value="<"><</option>
-          <option value="==">=</option>
-          <option value="!=">!=</option>
-          <option value=">=">>=</option>
-          <option value="<="><=</option>
-        </select>
-        <input type="text" placeholder="y" class="input-cond-right" style="width: 40px;">
-        <span>то</span>
-      </div>
-      <div class="block-body"></div>
-      <div class="connector"></div>
-      <div class="notch"></div>
-    `;
+          <div class="block-header">
+            <span>если</span>
+            <input type="text" placeholder="x" class="input-cond-left" style="width: 40px;">
+            <select class="input-cond-op">
+              <option value=">">></option>
+              <option value="<"><</option>
+              <option value="==">=</option>
+              <option value="!=">!=</option>
+              <option value=">=">>=</option>
+              <option value="<="><=</option>
+            </select>
+            <input type="text" placeholder="y" class="input-cond-right" style="width: 40px;">
+            <span>то</span>
+          </div>
+          <div class="block-body"></div>
+          <div class="connector"></div>
+          <div class="notch"></div>
+        `;
+    } else if (type === 'loop') {
+        block.classList.add('block-loop');
+        block.dataset.type = 'loop';
+        block.innerHTML = `
+          <div class="block-header">
+            <span>пока</span>
+            <input type="text" placeholder="i" class="input-cond-left" style="width:36px;">
+            <select class="input-cond-op">
+              <option value="<">&lt;</option>
+              <option value=">">&gt;</option>
+              <option value="==">==</option>
+              <option value="!=">!=</option>
+              <option value=">=">&gt;=</option>
+              <option value="<=">&lt;=</option>
+            </select>
+            <input type="text" placeholder="10" class="input-cond-right" style="width:36px;">
+          </div>
+          <div class="loop-body">
+            <div class="loop-body-hint">Перетащи блоки сюда</div>
+          </div>
+          <div class="connector"></div>
+          <div class="notch"></div>
+        `;
+
     } else {
         block.textContent = type;
         block.innerHTML += `<div class="connector"></div><div class="notch"></div>`;
@@ -284,6 +322,20 @@ document.addEventListener('mousedown', (e) => {
 
         draggedEl = block;
     } else {
+        // Если блок находится внутри тела цикла — вытащить его на холст
+        const parentLoopBody = wsBlock.closest('.loop-body');
+        if (parentLoopBody) {
+            const blockRect = wsBlock.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+            // Сбрасываем стили, переопределяя !important из CSS
+            wsBlock.style.setProperty('position', 'absolute', 'important');
+            wsBlock.style.setProperty('left', (blockRect.left - canvasRect.left) + 'px', 'important');
+            wsBlock.style.setProperty('top', (blockRect.top - canvasRect.top) + 'px', 'important');
+            wsBlock.style.width = '';
+            wsBlock.style.zIndex = '';
+            canvas.appendChild(wsBlock);
+            updateLoopBodyHints();
+        }
         // Клик по блоку
         draggedEl = wsBlock;
 
@@ -374,6 +426,14 @@ document.addEventListener('mousemove', (e) => {
 
         // Подсветка панели блоков
         updatePanelHighlight(e);
+        // Подсветка loop-body при наведении
+        canvas.querySelectorAll('.loop-body').forEach(body => {
+            const r = body.getBoundingClientRect();
+            const over = e.clientX >= r.left && e.clientX <= r.right &&
+                e.clientY >= r.top  && e.clientY <= r.bottom;
+            body.classList.toggle('drop-target', over);
+        });
+
 
         const deleteRect = deleteArea.getBoundingClientRect();
         if (
@@ -401,6 +461,13 @@ document.addEventListener('mousemove', (e) => {
 
     // Подсветка панели блоков
     updatePanelHighlight(e);
+    // Подсветка loop-body при наведении
+    canvas.querySelectorAll('.loop-body').forEach(body => {
+        const r = body.getBoundingClientRect();
+        const over = e.clientX >= r.left && e.clientX <= r.right &&
+            e.clientY >= r.top  && e.clientY <= r.bottom;
+        body.classList.toggle('drop-target', over);
+    });
 
     const deleteRect = deleteArea.getBoundingClientRect();
     if (
@@ -520,6 +587,35 @@ document.addEventListener('mouseup', (e) => {
         updatePlaceholderVisibility();
         return;
     }
+
+    // Проверяем: блок отпущен над телом цикла?
+    const loopBodies = Array.from(canvas.querySelectorAll('.loop-body'));
+    let nestTarget = null;
+    for (const body of loopBodies) {
+        const r = body.getBoundingClientRect();
+        if (e.clientX >= r.left && e.clientX <= r.right &&
+            e.clientY >= r.top  && e.clientY <= r.bottom &&
+            !draggedEl.contains(body)) {       // нельзя вложить блок сам в себя
+            nestTarget = body;
+            break;
+        }
+    }
+    if (nestTarget) {
+        draggedEl.style.position = '';
+        draggedEl.style.left = '';
+        draggedEl.style.top  = '';
+        draggedEl.style.zIndex = '';
+        draggedEl.style.width  = '';
+        nestTarget.appendChild(draggedEl);
+        canvas.querySelectorAll('.loop-body').forEach(b => b.classList.remove('drop-target'));
+        clearPanelHighlight();
+        deleteArea.classList.remove('active');
+        draggedEl = null;
+        updatePlaceholderVisibility();
+        updateLoopBodyHints();
+        return;
+    }
+    canvas.querySelectorAll('.loop-body').forEach(b => b.classList.remove('drop-target'));
 
     // Одиночное перетаскивание (существующий код)
     // Проверяем, отпущен ли блок над панелью блоков
@@ -838,64 +934,75 @@ function evalExpression(expr, vars) {
     if (!expr || expr.trim() === '') return 0;
     return calculate(expr, vars);
 }
+// Оценка условия (аналог if-else в C++)
+function evaluateCondition(leftExpr, op, rightExpr, vars) {
+    const left  = evalExpression(leftExpr,  vars);
+    const right = evalExpression(rightExpr, vars);
+    switch (op) {
+        case '<':  return left <  right;
+        case '>':  return left >  right;
+        case '==': return left == right;
+        case '!=': return left != right;
+        case '>=': return left >= right;
+        case '<=': return left <= right;
+    }
+    return false;
+}
 
-// Запуск программы
-runBtn.addEventListener('click', () => {
-    clearConsole();
-    logToConsole('Начало выполнения...');
+// Рекурсивный исполнитель списка блоков (аналог рекурсивной функции в C++)
+function executeBlockList(blocks, vars) {
+    for (const block of blocks) {
+        const type = block.dataset.type;
 
-    const vars = {}; // все переменные здесь
-
-    try {
-        // Собираем все блоки в workspace, игнорируя их геометрию — выполняем в произвольном порядке появления.
-        // На следующем шаге можно сделать сортировку по top для более предсказуемого порядка.
-        // Собираем блоки и сортируем по top (визуальный порядок сверху вниз)
-        const canvasRect = canvas.getBoundingClientRect();
-        const blocks = Array.from(canvas.querySelectorAll('.workspace-block')).sort((a, b) => {
-            const ra = a.getBoundingClientRect();
-            const rb = b.getBoundingClientRect();
-            const ya = ra.top - canvasRect.top;
-            const yb = rb.top - canvasRect.top;
-            return ya - yb;
-        });
-
-        for (const block of blocks) {
-
-            const type = block.dataset.type;
-
-            if (type === 'assign') {
-                const targetInput = block.querySelector('.input-target');
-                const valueInput = block.querySelector('.input-value');
-
-                const name = targetInput.value.trim();
-                const expr = valueInput.value.trim();
-
-                if (!name) {
-                    throw new Error('Пустое имя переменной в блоке присваивания');
-                }
-
-                // неявное объявление: если переменной нет, считаем, что она создаётся с 0,
-                // но сразу ей присваиваем выражение (как в большинстве языков это не делают,
-                // но для минимальной версии так проще)
-                if (vars[name] === undefined) {
-                    vars[name] = 0;
-                }
-
-                const val = evalExpression(expr, vars);
-                vars[name] = val;
-            }
-
-            if (type === 'print') {
-                const msgInput = block.querySelector('.input-msg');
-                const expr = msgInput.value.trim();
-                const val = evalExpression(expr, vars);
-                logToConsole(String(val));
-            }
+        if (type === 'assign') {
+            const name = block.querySelector('.input-target').value.trim();
+            const expr = block.querySelector('.input-value').value.trim();
+            if (!name) throw new Error('Пустое имя переменной в блоке присваивания');
+            if (vars[name] === undefined) vars[name] = 0;
+            vars[name] = evalExpression(expr, vars);
         }
 
-        logToConsole('Выполнение завершено.');
-        logToConsole('Состояние переменных: ' + JSON.stringify(vars));
+        if (type === 'print') {
+            const expr = block.querySelector('.input-msg').value.trim();
+            logToConsole(String(evalExpression(expr, vars)));
+        }
+
+        if (type === 'loop') {
+            const leftExpr  = block.querySelector('.input-cond-left').value.trim();
+            const op        = block.querySelector('.input-cond-op').value;
+            const rightExpr = block.querySelector('.input-cond-right').value.trim();
+
+            // Берём только прямых детей loop-body (аналог :scope > child в CSS)
+            const bodyBlocks = Array.from(
+                block.querySelector('.loop-body').querySelectorAll(':scope > .workspace-block')
+            );
+
+            const MAX_ITER = 1000; // защита от бесконечного цикла
+            let iterations = 0;
+
+            while (evaluateCondition(leftExpr, op, rightExpr, vars)) {
+                if (iterations++ >= MAX_ITER) {
+                    throw new Error('Превышен лимит 1000 итераций — бесконечный цикл?');
+                }
+                executeBlockList(bodyBlocks, vars); // рекурсия
+            }
+        }
+    }
+}
+runBtn.addEventListener('click', () => {
+    clearConsole();
+    logToConsole('▶ Начало выполнения...');
+    const vars = {};
+    try {
+        const blocks = Array.from(
+            canvas.querySelectorAll(':scope > .workspace-block')
+        ).sort((a, b) => (parseFloat(a.style.top) || 0) - (parseFloat(b.style.top) || 0));
+
+        executeBlockList(blocks, vars);
+
+        logToConsole('■ Выполнение завершено.');
+        logToConsole('Переменные: ' + JSON.stringify(vars));
     } catch (e) {
-        logToConsole('Ошибка: ' + e.message, true);
+        logToConsole('✕ Ошибка: ' + e.message, true);
     }
 });
