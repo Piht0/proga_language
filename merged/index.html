@@ -614,8 +614,32 @@
             gap: 4px;
         }
 
+        /* Тело условия if — область куда перетаскивают блоки */
+        .if-body {
+            min-height: 56px;
+            margin: 8px 0 4px 12px;
+            padding: 6px;
+            border: 2px dashed rgba(212, 168, 83, 0.5);
+            border-radius: 8px;
+            background: rgba(212, 168, 83, 0.07);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
         /* Блоки внутри тела цикла — поточная вёрстка, без абсолютного позиционирования */
         .loop-body > .workspace-block {
+            position: relative !important;
+            left: auto !important;
+            top: auto !important;
+            z-index: auto !important;
+            width: 100%;
+            min-width: unset;
+            margin: 0;
+        }
+
+        /* Блоки внутри тела условия if — поточная вёрстка, без абсолютного позиционирования */
+        .if-body > .workspace-block {
             position: relative !important;
             left: auto !important;
             top: auto !important;
@@ -634,10 +658,24 @@
             user-select: none;
         }
 
+        .if-body-hint {
+            font-size: 10px;
+            color: var(--text-soft);
+            text-align: center;
+            padding: 6px 0;
+            pointer-events: none;
+            user-select: none;
+        }
+
         /* Подсветка тела при наведении во время drag */
         .loop-body.drop-target {
             background: rgba(155, 127, 200, 0.18);
             border-color: var(--block-loop);
+        }
+
+        .if-body.drop-target {
+            background: rgba(212, 168, 83, 0.18);
+            border-color: var(--block-logic);
         }
 
         /* ============================================
