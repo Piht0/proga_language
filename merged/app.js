@@ -128,16 +128,16 @@ function updatePlaceholderVisibility() {
     const hasBlocks = canvas.querySelectorAll('.workspace-block').length > 0;
     placeholder.style.display = hasBlocks ? 'none' : 'flex';
 }
-// Обновляет подсказку внутри тела цикла
+// Обновляет подсказку внутри тела цикла и условия
 function updateLoopBodyHints() {
-    canvas.querySelectorAll('.loop-body').forEach(body => {
+    canvas.querySelectorAll('.loop-body, .if-body').forEach(body => {
         const hasBlocks = body.querySelector('.workspace-block');
-        let hint = body.querySelector('.loop-body-hint');
+        let hint = body.querySelector('.loop-body-hint, .if-body-hint');
         if (hasBlocks) {
             if (hint) hint.remove();
         } else if (!hint) {
             hint = document.createElement('div');
-            hint.className = 'loop-body-hint';
+            hint.className = body.classList.contains('loop-body') ? 'loop-body-hint' : 'if-body-hint';
             hint.textContent = 'Перетащи блоки сюда';
             body.appendChild(hint);
         }
@@ -172,7 +172,6 @@ function createWorkspaceBlock(type) {
           <div class="notch"></div>
         `;
     } else if (type === 'if') {
-        // пока не используем в минимальном варианте, но блок может существовать
         block.classList.add('block-if')
         block.dataset.type = 'if';
         block.innerHTML = `
@@ -190,7 +189,9 @@ function createWorkspaceBlock(type) {
             <input type="text" placeholder="y" class="input-cond-right" style="width: 40px;">
             <span>то</span>
           </div>
-          <div class="block-body"></div>
+          <div class="if-body">
+            <div class="if-body-hint">Перетащи блоки сюда</div>
+          </div>
           <div class="connector"></div>
           <div class="notch"></div>
         `;
@@ -322,8 +323,8 @@ document.addEventListener('mousedown', (e) => {
 
         draggedEl = block;
     } else {
-        // Если блок находится внутри тела цикла — вытащить его на холст
-        const parentLoopBody = wsBlock.closest('.loop-body');
+        // Если блок находится внутри тела цикла или условия — вытащить его на холст
+        const parentLoopBody = wsBlock.closest('.loop-body, .if-body');
         if (parentLoopBody) {
             const blockRect = wsBlock.getBoundingClientRect();
             const canvasRect = canvas.getBoundingClientRect();
@@ -426,8 +427,8 @@ document.addEventListener('mousemove', (e) => {
 
         // Подсветка панели блоков
         updatePanelHighlight(e);
-        // Подсветка loop-body при наведении
-        canvas.querySelectorAll('.loop-body').forEach(body => {
+        // Подсветка loop-body и if-body при наведении
+        canvas.querySelectorAll('.loop-body, .if-body').forEach(body => {
             const r = body.getBoundingClientRect();
             const over = e.clientX >= r.left && e.clientX <= r.right &&
                 e.clientY >= r.top  && e.clientY <= r.bottom;
@@ -461,8 +462,8 @@ document.addEventListener('mousemove', (e) => {
 
     // Подсветка панели блоков
     updatePanelHighlight(e);
-    // Подсветка loop-body при наведении
-    canvas.querySelectorAll('.loop-body').forEach(body => {
+    // Подсветка loop-body и if-body при наведении
+    canvas.querySelectorAll('.loop-body, .if-body').forEach(body => {
         const r = body.getBoundingClientRect();
         const over = e.clientX >= r.left && e.clientX <= r.right &&
             e.clientY >= r.top  && e.clientY <= r.bottom;
@@ -588,8 +589,8 @@ document.addEventListener('mouseup', (e) => {
         return;
     }
 
-    // Проверяем: блок отпущен над телом цикла?
-    const loopBodies = Array.from(canvas.querySelectorAll('.loop-body'));
+    // Проверяем: блок отпущен над телом цикла или условия?
+    const loopBodies = Array.from(canvas.querySelectorAll('.loop-body, .if-body'));
     let nestTarget = null;
     for (const body of loopBodies) {
         const r = body.getBoundingClientRect();
@@ -607,7 +608,7 @@ document.addEventListener('mouseup', (e) => {
         draggedEl.style.zIndex = '';
         draggedEl.style.width  = '';
         nestTarget.appendChild(draggedEl);
-        canvas.querySelectorAll('.loop-body').forEach(b => b.classList.remove('drop-target'));
+        canvas.querySelectorAll('.loop-body, .if-body').forEach(b => b.classList.remove('drop-target'));
         clearPanelHighlight();
         deleteArea.classList.remove('active');
         draggedEl = null;
@@ -615,7 +616,7 @@ document.addEventListener('mouseup', (e) => {
         updateLoopBodyHints();
         return;
     }
-    canvas.querySelectorAll('.loop-body').forEach(b => b.classList.remove('drop-target'));
+    canvas.querySelectorAll('.loop-body, .if-body').forEach(b => b.classList.remove('drop-target'));
 
     // Одиночное перетаскивание (существующий код)
     // Проверяем, отпущен ли блок над панелью блоков
@@ -749,8 +750,12 @@ function calculate(expression, vars) {
     // В конце сложение/вычитание
     expression = parseadd(expression);
 
-    // Возвращаем число
-    return parseFloat(expression);
+    // Если выражение содержит NaN — значит переменная не существует
+    const result = parseFloat(expression);
+    if (isNaN(result)) {
+        throw new Error(`Переменная не существует`);
+    }
+    return result;
 }
 
 function substituteVariables(expr, vars) {
@@ -949,46 +954,147 @@ function evaluateCondition(leftExpr, op, rightExpr, vars) {
     return false;
 }
 
-// Рекурсивный исполнитель списка блоков (аналог рекурсивной функции в C++)
-function executeBlockList(blocks, vars) {
+// Находит следующий блок в цепочке (снизу от текущего)
+function findNextBlockInChain(currentBlock, allBlocks) {
+    const canvasRect = canvas.getBoundingClientRect();
+    const currentRect = currentBlock.getBoundingClientRect();
+    const currentBottom = currentRect.bottom - canvasRect.top;
+    const currentCenterX = currentRect.left - canvasRect.left + currentRect.width / 2;
+
+    let nextBlock = null;
+    let minDistance = Infinity;
+
+    for (const block of allBlocks) {
+        if (block === currentBlock) continue;
+
+        const rect = block.getBoundingClientRect();
+        const blockTop = rect.top - canvasRect.top;
+        const blockCenterX = rect.left - canvasRect.left + rect.width / 2;
+
+        const xClose = Math.abs(blockCenterX - currentCenterX) < 60;
+        const distance = blockTop - currentBottom;
+
+        if (xClose && distance > 0 && distance < SNAP_DISTANCE + 10 && distance < minDistance) {
+            minDistance = distance;
+            nextBlock = block;
+        }
+    }
+
+    return nextBlock;
+}
+
+// Находит верхние блоки (начало цепочек)
+function findTopBlocks(blocks) {
+    const canvasRect = canvas.getBoundingClientRect();
+    const topBlocks = [];
+
     for (const block of blocks) {
-        const type = block.dataset.type;
+        const rect = block.getBoundingClientRect();
+        const blockTop = rect.top - canvasRect.top;
+        const blockCenterX = rect.left - canvasRect.left + rect.width / 2;
 
-        if (type === 'assign') {
-            const name = block.querySelector('.input-target').value.trim();
-            const expr = block.querySelector('.input-value').value.trim();
-            if (!name) throw new Error('Пустое имя переменной в блоке присваивания');
-            if (vars[name] === undefined) vars[name] = 0;
-            vars[name] = evalExpression(expr, vars);
-        }
+        let hasBlockAbove = false;
+        for (const other of blocks) {
+            if (other === block) continue;
+            const otherRect = other.getBoundingClientRect();
+            const otherBottom = otherRect.bottom - canvasRect.top;
+            const otherCenterX = otherRect.left - canvasRect.left + otherRect.width / 2;
 
-        if (type === 'print') {
-            const expr = block.querySelector('.input-msg').value.trim();
-            logToConsole(String(evalExpression(expr, vars)));
-        }
+            const xClose = Math.abs(blockCenterX - otherCenterX) < 60;
+            const yClose = Math.abs(blockTop - otherBottom) < SNAP_DISTANCE + 10;
 
-        if (type === 'loop') {
-            const leftExpr  = block.querySelector('.input-cond-left').value.trim();
-            const op        = block.querySelector('.input-cond-op').value;
-            const rightExpr = block.querySelector('.input-cond-right').value.trim();
-
-            // Берём только прямых детей loop-body (аналог :scope > child в CSS)
-            const bodyBlocks = Array.from(
-                block.querySelector('.loop-body').querySelectorAll(':scope > .workspace-block')
-            );
-
-            const MAX_ITER = 1000; // защита от бесконечного цикла
-            let iterations = 0;
-
-            while (evaluateCondition(leftExpr, op, rightExpr, vars)) {
-                if (iterations++ >= MAX_ITER) {
-                    throw new Error('Превышен лимит 1000 итераций — бесконечный цикл?');
-                }
-                executeBlockList(bodyBlocks, vars); // рекурсия
+            if (xClose && yClose && otherBottom < blockTop) {
+                hasBlockAbove = true;
+                break;
             }
+        }
+
+        if (!hasBlockAbove) {
+            topBlocks.push(block);
+        }
+    }
+    return topBlocks;
+}
+
+// Выполняет один блок
+function executeSingleBlock(block, scope) {
+    const type = block.dataset.type;
+
+    if (type === 'assign') {
+        const name = block.querySelector('.input-target').value.trim();
+        const expr = block.querySelector('.input-value').value.trim();
+        if (!name) throw new Error('Пустое имя переменной в блоке присваивания');
+        if (scope[name] === undefined) scope[name] = 0;
+        scope[name] = evalExpression(expr, scope);
+    }
+
+    if (type === 'print') {
+        const expr = block.querySelector('.input-msg').value.trim();
+        logToConsole(String(evalExpression(expr, scope)));
+    }
+
+    if (type === 'loop') {
+        const leftExpr  = block.querySelector('.input-cond-left').value.trim();
+        const op        = block.querySelector('.input-cond-op').value;
+        const rightExpr = block.querySelector('.input-cond-right').value.trim();
+
+        const bodyBlocks = Array.from(
+            block.querySelector('.loop-body').querySelectorAll(':scope > .workspace-block')
+        );
+
+        const MAX_ITER = 1000;
+        let iterations = 0;
+
+        while (evaluateCondition(leftExpr, op, rightExpr, scope)) {
+            if (iterations++ >= MAX_ITER) {
+                throw new Error('Превышен лимит 1000 итераций — бесконечный цикл?');
+            }
+            executeBlockList(bodyBlocks, scope, true);
+        }
+    }
+
+    if (type === 'if') {
+        const leftExpr  = block.querySelector('.input-cond-left').value.trim();
+        const op        = block.querySelector('.input-cond-op').value;
+        const rightExpr = block.querySelector('.input-cond-right').value.trim();
+
+        const bodyBlocks = Array.from(
+            block.querySelector('.if-body').querySelectorAll(':scope > .workspace-block')
+        );
+
+        if (evaluateCondition(leftExpr, op, rightExpr, scope)) {
+            executeBlockList(bodyBlocks, scope, true);
         }
     }
 }
+
+// Выполняет цепочку блоков последовательно
+function executeChain(startBlock, allBlocks, scope) {
+    let current = startBlock;
+    while (current) {
+        executeSingleBlock(current, scope);
+        current = findNextBlockInChain(current, allBlocks);
+    }
+}
+
+// Рекурсивный исполнитель списка блоков с изолированными областями видимости
+function executeBlockList(blocks, vars, isIsolated = false) {
+    // Если это изолированная область (внутри if/loop), создаём копию только существующих переменных
+    // Но новые переменные из этой области не будут видны снаружи
+    let scope;
+    if (isIsolated) {
+        scope = { ...vars }; // Копируем только текущие переменные внутрь
+    } else {
+        scope = vars; // Глобальная область
+    }
+
+    // Находим все верхние блоки и выполняем каждую цепочку
+    const topBlocks = findTopBlocks(blocks);
+    for (const startBlock of topBlocks) {
+        executeChain(startBlock, blocks, scope);
+    }
+}
+
 runBtn.addEventListener('click', () => {
     clearConsole();
     logToConsole('▶ Начало выполнения...');
@@ -996,7 +1102,7 @@ runBtn.addEventListener('click', () => {
     try {
         const blocks = Array.from(
             canvas.querySelectorAll(':scope > .workspace-block')
-        ).sort((a, b) => (parseFloat(a.style.top) || 0) - (parseFloat(b.style.top) || 0));
+        );
 
         executeBlockList(blocks, vars);
 
