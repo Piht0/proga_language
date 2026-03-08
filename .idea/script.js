@@ -245,6 +245,22 @@
       <div class="connector"></div>
       <div class="notch"></div>
     `;
+        } else if (type === 'array_get') {
+            block.classList.add('block-assign');
+            block.dataset.type = 'array_get';
+            block.innerHTML = `
+      <div class="block-header">
+        <input type="text" placeholder="x" class="input-target" style="width: 35px;">
+        <span>:=</span>
+        <input type="text" placeholder="a" class="input-arr-name" style="width: 30px;">
+        <span>[</span>
+        <input type="text" placeholder="i" class="input-arr-index" style="width: 30px;">
+        <span>]</span>
+      </div>
+      <div class="connector"></div>
+      <div class="notch"></div>
+    `;
+
         } else if (type === 'array_print') {
             block.classList.add('block-print');
             block.dataset.type = 'array_print';
@@ -1042,6 +1058,20 @@
                 if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
                 if (idx < 0 || idx >= _arrays[name].length) throw new Error(`Выход за пределы: ${name}[${idx}]`);
                 _arrays[name][idx] = val;
+            }
+            if (type === 'array_get') {
+                const target = block.querySelector('.input-target').value.trim();
+                const name   = block.querySelector('.input-arr-name').value.trim();
+                const idx    = Math.floor(
+                    evalExpression(block.querySelector('.input-arr-index').value.trim(), vars)
+                );
+
+                if (!target) throw new Error('Пустое имя переменной‑приёмника');
+                if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+                if (idx < 0 || idx >= _arrays[name].length)
+                    throw new Error(`Выход за пределы: ${name}[${idx}]`);
+
+                vars[target] = _arrays[name][idx];
             }
 
             if (type === 'array_print') {
