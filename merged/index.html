@@ -456,7 +456,13 @@
                     radial-gradient(circle at 100% 100%, rgba(196, 196, 176, 0.05), transparent 55%),
                     var(--bg-panel-soft);
             position: relative;
-            overflow: hidden;
+            overflow: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            align-content: flex-start;
+            flex-wrap: wrap;
         }
 
         /* Рамка выделения */
@@ -709,6 +715,24 @@
         }
 
         /* ============================================
+           КОНСОЛЬ
+           ============================================ */
+        #console {
+            height: 150px;
+            background-color: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 10px;
+            overflow-y: auto;
+            border-top: 3px solid #333;
+            font-size: 14px;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
+        .log-entry { margin-bottom: 4px; }
+        .log-error { color: #ff5555; font-weight: bold; }
+
+        /* ============================================
            СКРОЛЛБАРЫ
            ============================================ */
         ::-webkit-scrollbar {
@@ -749,12 +773,12 @@
     <div class="logo">
         <button class="theme-toggle" id="theme-toggle" title="Переключить тему"></button>
         <div class="logo-mark"></div>
-        <span> &#128526; Domino 	&#128526;</span>
+        <span> &#128526; Domino &#128526;</span>
     </div>
     <div class="header-actions">
         <button class="btn" id="reset-btn">Сбросить</button>
         <button class="btn btn-import">Импортировать</button>
-        <button class="btn btn-primary">Выполнить программу</button>
+        <button class="btn btn-primary" id="run-btn">Выполнить программу</button>
     </div>
 </header>
 
@@ -765,48 +789,61 @@
             <span class="panel-header-chip-label">Блоки</span>
         </div>
 
-        <div class="block" data-block-type="print">
-            <div class="domino-dot-top-left"></div>
-            <div class="domino-dot-top-right"></div>
-            <div class="block-label">
-                <span class="block-name">Печать</span>
+        <div class="blocks-list">
+            <div class="block" data-block-type="decl" draggable="true">
+                <div class="domino-dot-top-left"></div>
+                <div class="domino-dot-top-right"></div>
+                <div class="block-label">
+                    <span class="block-name">Объявить</span>
+                </div>
+                <div class="block-meta">объявить <input type="text" placeholder="a,b" class="input-names" style="width: 80px; margin-top: 4px;"></div>
+                <div class="domino-dot-bottom-left"></div>
+                <div class="domino-dot-bottom-right"></div>
             </div>
-            <div class="block-meta">Выводит текст в консоль</div>
-            <div class="domino-dot-bottom-left"></div>
-            <div class="domino-dot-bottom-right"></div>
-        </div>
 
-        <div class="block" data-block-type="if">
-            <div class="domino-dot-top-left"></div>
-            <div class="domino-dot-top-right"></div>
-            <div class="block-label">
-                <span class="block-name">Если</span>
+            <div class="block" data-block-type="print" draggable="true">
+                <div class="domino-dot-top-left"></div>
+                <div class="domino-dot-top-right"></div>
+                <div class="block-label">
+                    <span class="block-name">Печать</span>
+                </div>
+                <div class="block-meta">вывести <input type="text" placeholder="значение" class="input-msg" style="width: 100px; margin-top: 4px;"></div>
+                <div class="domino-dot-bottom-left"></div>
+                <div class="domino-dot-bottom-right"></div>
             </div>
-            <div class="block-meta">Условное ветвление</div>
-            <div class="domino-dot-bottom-left"></div>
-            <div class="domino-dot-bottom-right"></div>
-        </div>
 
-        <div class="block" data-block-type="assign">
-            <div class="domino-dot-top-left"></div>
-            <div class="domino-dot-top-right"></div>
-            <div class="block-label">
-                <span class="block-name">Присвоение</span>
+            <div class="block" data-block-type="if" draggable="true">
+                <div class="domino-dot-top-left"></div>
+                <div class="domino-dot-top-right"></div>
+                <div class="block-label">
+                    <span class="block-name">Если</span>
+                </div>
+                <div class="block-meta">если <input type="text" placeholder="x" class="input-cond-left" style="width: 40px;"> <select class="input-cond-op" style="margin-top: 4px;"><option value=">">></option><option value="<"><</option><option value="==">=</option><option value="!=">!=</option><option value=">=">>=</option><option value="<="><=</option></select> <input type="text" placeholder="y" class="input-cond-right" style="width: 40px;"> то</div>
+                <div class="domino-dot-bottom-left"></div>
+                <div class="domino-dot-bottom-right"></div>
             </div>
-            <div class="block-meta">x = выражение</div>
-            <div class="domino-dot-bottom-left"></div>
-            <div class="domino-dot-bottom-right"></div>
-        </div>
 
-        <div class="block" data-block-type="loop">
-            <div class="domino-dot-top-left"></div>
-            <div class="domino-dot-top-right"></div>
-            <div class="block-label">
-                <span class="block-name">Цикл</span>
+            <div class="block" data-block-type="assign" draggable="true">
+                <div class="domino-dot-top-left"></div>
+                <div class="domino-dot-top-right"></div>
+                <div class="block-label">
+                    <span class="block-name">Присвоение</span>
+                </div>
+                <div class="block-meta"><input type="text" placeholder="x" class="input-target" style="width: 50px;"> := <input type="text" placeholder="5" class="input-value" style="width: 60px;"></div>
+                <div class="domino-dot-bottom-left"></div>
+                <div class="domino-dot-bottom-right"></div>
             </div>
-            <div class="block-meta">пока условие истинно</div>
-            <div class="domino-dot-bottom-left"></div>
-            <div class="domino-dot-bottom-right"></div>
+
+            <div class="block" data-block-type="loop" draggable="true">
+                <div class="domino-dot-top-left"></div>
+                <div class="domino-dot-top-right"></div>
+                <div class="block-label">
+                    <span class="block-name">Цикл</span>
+                </div>
+                <div class="block-meta">пока условие истинно</div>
+                <div class="domino-dot-bottom-left"></div>
+                <div class="domino-dot-bottom-right"></div>
+            </div>
         </div>
     </section>
 
@@ -822,7 +859,7 @@
             </div>
         </div>
 
-        <div class="workspace-canvas" id="workspace-canvas">
+        <div class="workspace-canvas" id="workspace">
             <div class="workspace-placeholder" id="workspace-placeholder">
                 <div class="workspace-placeholder-title">
                     Перетащи блок из панели слева
@@ -836,7 +873,394 @@
                 Удалить блок
             </div>
         </div>
+
+        <div id="console"></div>
     </section>
 </main>
+
+<script>
+  /**
+   * INTERPRETER ENGINE
+   */
+  class Interpreter {
+    constructor(consoleEl) {
+      this.vars = {};
+      this.consoleEl = consoleEl;
+      this.errorBlock = null;
+    }
+
+    log(msg, isError = false) {
+      const div = document.createElement('div');
+      div.className = 'log-entry' + (isError ? ' log-error' : '');
+      div.innerText = msg;
+      this.consoleEl.appendChild(div);
+      this.consoleEl.scrollTop = this.consoleEl.scrollHeight;
+    }
+
+    clear() {
+      this.consoleEl.innerHTML = '';
+      if (this.errorBlock) {
+        this.errorBlock.classList.remove('block-error');
+        this.errorBlock = null;
+      }
+    }
+
+    run(rootElement) {
+      this.clear();
+      this.vars = {};
+      this.log("Starting execution...");
+
+      try {
+        const rootBlocks = Array.from(rootElement.children).filter(el => el.classList.contains('block') && !el.classList.contains('dragging'));
+        this.executeList(rootBlocks);
+        this.log("Finished.");
+      } catch (e) {
+        this.log("Ошибка: " + e.message, true);
+      }
+    }
+
+    executeList(blocks) {
+      for (const block of blocks) {
+        this.executeBlock(block);
+      }
+    }
+
+    executeBlock(block) {
+      const type = block.dataset.type || block.dataset.blockType;
+
+      switch(type) {
+        case 'decl': this.handleDecl(block); break;
+        case 'assign': this.handleAssign(block); break;
+        case 'if': this.handleIf(block); break;
+        case 'print': this.handlePrint(block); break;
+        case 'loop': this.handleLoop(block); break;
+      }
+    }
+
+    setError(block, msg) {
+      if (this.errorBlock) this.errorBlock.classList.remove('block-error');
+      block.classList.add('block-error');
+      this.errorBlock = block;
+      throw new Error(msg);
+    }
+
+    handleDecl(block) {
+      const input = block.querySelector('.input-names');
+      if (!input) return;
+      const names = input.value.split(',');
+      names.forEach(n => {
+        const name = n.trim();
+        if (!name) return;
+        if (!/^[a-zA-Z_]/.test(name)) this.setError(block, `Неверное имя: ${name}`);
+        this.vars[name] = 0;
+      });
+    }
+
+    handleAssign(block) {
+      const target = block.querySelector('.input-target');
+      const expr = block.querySelector('.input-value');
+      if (!target || !expr) return;
+      
+      const targetName = target.value.trim();
+      const exprValue = expr.value;
+
+      if (!targetName) this.setError(block, "Пустая переменная назначения");
+      if (this.vars[targetName] === undefined) this.setError(block, `Переменная '${targetName}' не объявлена`);
+
+      const val = this.parseMath(exprValue, block);
+      this.vars[targetName] = val;
+    }
+
+    handlePrint(block) {
+      const expr = block.querySelector('.input-msg');
+      if (!expr) return;
+      const val = this.parseMath(expr.value, block);
+      this.log(String(val));
+    }
+
+    handleIf(block) {
+      const leftExpr = block.querySelector('.input-cond-left');
+      const op = block.querySelector('.input-cond-op');
+      const rightExpr = block.querySelector('.input-cond-right');
+      
+      if (!leftExpr || !op || !rightExpr) return;
+
+      const left = this.parseMath(leftExpr.value, block);
+      const right = this.parseMath(rightExpr.value, block);
+
+      let cond = false;
+      switch(op.value) {
+        case '>': cond = left > right; break;
+        case '<': cond = left < right; break;
+        case '==': cond = left === right; break;
+        case '!=': cond = left !== right; break;
+        case '>=': cond = left >= right; break;
+        case '<=': cond = left <= right; break;
+      }
+
+      if (cond) {
+        const body = block.querySelector('.block-body, .if-body');
+        if (body) {
+          const children = Array.from(body.children).filter(el => el.classList.contains('block'));
+          this.executeList(children);
+        }
+      }
+    }
+
+    handleLoop(block) {
+      // Простая реализация цикла
+      const body = block.querySelector('.loop-body');
+      if (!body) return;
+      
+      let iterations = 0;
+      const maxIterations = 100;
+      
+      while (iterations < maxIterations) {
+        const children = Array.from(body.children).filter(el => el.classList.contains('block'));
+        if (children.length === 0) break;
+        this.executeList(children);
+        iterations++;
+      }
+    }
+
+    // --- Parser ---
+    parseMath(str, contextBlock) {
+      if (!str && str !== 0) return 0;
+
+      const tokens = [];
+      const regex = /\s*([0-9]+)|([a-zA-Z_][a-zA-Z0-9_]*)|(\+|\-|\*|\/|\%|\(|\))/g;
+      let match;
+      while ((match = regex.exec(str)) != null) {
+        if (match[1]) tokens.push({type: 'NUM', val: parseInt(match[1])});
+        else if (match[2]) tokens.push({type: 'VAR', val: match[2]});
+        else if (match[3]) tokens.push({type: 'OP', val: match[3]});
+      }
+
+      let pos = 0;
+      const peek = () => tokens[pos];
+      const consume = () => tokens[pos++];
+
+      const parseExpr = () => {
+        let res = parseTerm();
+        while (peek() && peek().type === 'OP' && (peek().val === '+' || peek().val === '-')) {
+          const op = consume().val;
+          const right = parseTerm();
+          if (op === '+') res += right;
+          else res -= right;
+        }
+        return res;
+      };
+
+      const parseTerm = () => {
+        let res = parseFactor();
+        while (peek() && peek().type === 'OP' && (peek().val === '*' || peek().val === '/' || peek().val === '%')) {
+          const op = consume().val;
+          const right = parseFactor();
+          if (op === '*') res *= right;
+          else if (op === '/') {
+            if (right === 0) this.setError(contextBlock, "Деление на 0");
+            res = Math.floor(res / right);
+          }
+          else res %= right;
+        }
+        return res;
+      };
+
+      const parseFactor = () => {
+        const t = peek();
+        if (!t) this.setError(contextBlock, `Ожидается число или переменная в: "${str}"`);
+
+        if (t.type === 'NUM') {
+          consume();
+          return t.val;
+        }
+        if (t.type === 'VAR') {
+          consume();
+          if (this.vars[t.val] === undefined) this.setError(contextBlock, `Переменная '${t.val}' не объявлена`);
+          return this.vars[t.val];
+        }
+        if (t.type === 'OP' && t.val === '(') {
+          consume();
+          const res = parseExpr();
+          if (!peek() || peek().val !== ')') this.setError(contextBlock, "Пропущена скобка )");
+          consume();
+          return res;
+        }
+
+        this.setError(contextBlock, `Синтаксическая ошибка: ${t.val}`);
+      };
+
+      try {
+        const result = parseExpr();
+        if (peek()) this.setError(contextBlock, `Лишние символы после выражения`);
+        return result;
+      } catch(e) {
+        throw e;
+      }
+    }
+  }
+
+  /**
+   * UI & DRAG AND DROP
+   */
+  const workspace = document.getElementById('workspace');
+  const consoleEl = document.getElementById('console');
+  const placeholder = document.getElementById('workspace-placeholder');
+  const engine = new Interpreter(consoleEl);
+
+  let draggedEl = null;
+  let dragOffsetX = 0, dragOffsetY = 0;
+
+  function isContainer(el) {
+    return el.id === 'workspace' || el.classList.contains('block-body') || el.classList.contains('if-body') || el.classList.contains('loop-body');
+  }
+
+  function updatePlaceholder() {
+    const blocks = workspace.querySelectorAll('.block:not(.dragging)');
+    if (blocks.length === 0) {
+      placeholder.style.display = 'flex';
+    } else {
+      placeholder.style.display = 'none';
+    }
+  }
+
+  document.addEventListener('mousedown', e => {
+    const target = e.target.closest('.block');
+    if (!target || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+    e.preventDefault();
+
+    draggedEl = target.cloneNode(true);
+    draggedEl.classList.add('dragging');
+
+    const rect = target.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+
+    draggedEl.style.position = 'absolute';
+    draggedEl.style.width = rect.width + 'px';
+    draggedEl.style.left = rect.left + 'px';
+    draggedEl.style.top = rect.top + 'px';
+    draggedEl.style.zIndex = 1000;
+    draggedEl.style.pointerEvents = 'none';
+
+    document.body.appendChild(draggedEl);
+
+    if (target.parentElement.id === 'workspace' || target.parentElement.classList.contains('block-body') || target.parentElement.classList.contains('if-body') || target.parentElement.classList.contains('loop-body')) {
+      target.classList.add('marked-for-removal');
+    }
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!draggedEl) return;
+
+    draggedEl.style.left = (e.clientX - dragOffsetX) + 'px';
+    draggedEl.style.top = (e.clientY - dragOffsetY) + 'px';
+
+    document.querySelectorAll('.drop-active, .drop-target-body, .if-body.drop-target, .loop-body.drop-target').forEach(el => {
+      el.classList.remove('drop-active', 'drop-target-body', 'drop-target');
+    });
+
+    draggedEl.style.display = 'none';
+    const below = document.elementFromPoint(e.clientX, e.clientY);
+    draggedEl.style.display = '';
+
+    if (!below) return;
+
+    const bodyContainer = below.closest('.block-body, .if-body, .loop-body');
+    if (bodyContainer) {
+      bodyContainer.classList.add('drop-target-body');
+      return;
+    }
+
+    const targetBlock = below.closest('.block:not(.dragging)');
+    if (targetBlock && targetBlock.parentElement && isContainer(targetBlock.parentElement)) {
+      const rect = targetBlock.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+
+      if (e.clientY < midY) {
+        targetBlock.classList.add('drop-active');
+      } else {
+        targetBlock.classList.add('drop-active');
+      }
+    }
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (!draggedEl) return;
+
+    draggedEl.style.display = 'none';
+    const below = document.elementFromPoint(e.clientX, e.clientY);
+    draggedEl.style.display = '';
+
+    document.querySelectorAll('.marked-for-removal').forEach(el => el.remove());
+
+    let dropped = false;
+
+    if (below) {
+      const body = below.closest('.block-body, .if-body, .loop-body');
+      if (body) {
+        draggedEl.style.position = '';
+        draggedEl.style.width = '';
+        draggedEl.style.left = '';
+        draggedEl.style.top = '';
+        draggedEl.style.zIndex = '';
+        draggedEl.style.pointerEvents = '';
+        draggedEl.classList.remove('dragging');
+
+        body.appendChild(draggedEl);
+        dropped = true;
+      } else {
+        const target = below.closest('.block:not(.dragging)');
+        const container = below.closest('#workspace') || (target ? target.parentElement : null);
+
+        if (container) {
+          draggedEl.style.position = '';
+          draggedEl.style.width = '';
+          draggedEl.style.left = '';
+          draggedEl.style.top = '';
+          draggedEl.style.zIndex = '';
+          draggedEl.style.pointerEvents = '';
+          draggedEl.classList.remove('dragging');
+
+          if (target) {
+            const rect = target.getBoundingClientRect();
+            if (e.clientY < rect.top + rect.height / 2) {
+              container.insertBefore(draggedEl, target);
+            } else {
+              container.insertBefore(draggedEl, target.nextSibling);
+            }
+          } else {
+            container.appendChild(draggedEl);
+          }
+          dropped = true;
+        }
+      }
+    }
+
+    if (!dropped) {
+      draggedEl.remove();
+    }
+
+    document.querySelectorAll('.drop-active, .drop-target-body, .if-body.drop-target, .loop-body.drop-target').forEach(el => {
+      el.classList.remove('drop-active', 'drop-target-body', 'drop-target');
+    });
+
+    draggedEl = null;
+    updatePlaceholder();
+  });
+
+  document.getElementById('run-btn').addEventListener('click', () => {
+    engine.run(workspace);
+  });
+
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    workspace.innerHTML = '';
+    consoleEl.innerHTML = '';
+    updatePlaceholder();
+  });
+
+  updatePlaceholder();
+</script>
 </body>
 </html>
