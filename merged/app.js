@@ -1,3 +1,4 @@
+let _arrays = {};
 const themeToggleBtn = document.getElementById('theme-toggle');
 const body = document.body;
 
@@ -218,7 +219,59 @@ function createWorkspaceBlock(type) {
           <div class="connector"></div>
           <div class="notch"></div>
         `;
-
+    } else if (type === 'array_create') {
+        block.classList.add('block-assign');
+        block.dataset.type = 'array_create';
+        block.innerHTML = `
+          <div class="block-header">
+            <span>массив</span>
+            <input type="text" placeholder="a" class="input-arr-name" style="width: 35px;">
+            <span>размер</span>
+            <input type="text" placeholder="5" class="input-arr-size" style="width: 35px;">
+          </div>
+          <div class="connector"></div>
+          <div class="notch"></div>
+        `;
+    } else if (type === 'array_set') {
+        block.classList.add('block-assign');
+        block.dataset.type = 'array_set';
+        block.innerHTML = `
+          <div class="block-header">
+            <input type="text" placeholder="a" class="input-arr-name" style="width: 30px;">
+            <span>[</span>
+            <input type="text" placeholder="i" class="input-arr-index" style="width: 30px;">
+            <span>]:=</span>
+            <input type="text" placeholder="0" class="input-arr-value" style="width: 65px;">
+          </div>
+          <div class="connector"></div>
+          <div class="notch"></div>
+        `;
+    } else if (type === 'array_get') {
+        block.classList.add('block-assign');
+        block.dataset.type = 'array_get';
+        block.innerHTML = `
+          <div class="block-header">
+            <input type="text" placeholder="x" class="input-target" style="width: 35px;">
+            <span>:=</span>
+            <input type="text" placeholder="a" class="input-arr-name" style="width: 30px;">
+            <span>[</span>
+            <input type="text" placeholder="i" class="input-arr-index" style="width: 30px;">
+            <span>]</span>
+          </div>
+          <div class="connector"></div>
+          <div class="notch"></div>
+        `;
+    } else if (type === 'array_print') {
+        block.classList.add('block-print');
+        block.dataset.type = 'array_print';
+        block.innerHTML = `
+          <div class="block-header">
+            <span>вывести массив</span>
+            <input type="text" placeholder="a" class="input-arr-name" style="width: 35px;">
+          </div>
+          <div class="connector"></div>
+          <div class="notch"></div>
+        `;
     } else {
         block.textContent = type;
         block.innerHTML += `<div class="connector"></div><div class="notch"></div>`;
@@ -759,12 +812,19 @@ function calculate(expression, vars) {
 }
 
 function substituteVariables(expr, vars) {
+    // Сначала заменяем обращения к элементам массивов a[i]
+    expr = expr.replace(/([a-zA-Z_]\w*)\[([^\]]+)\]/g, (match, name, idxExpr) => {
+        if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+        const idx = Math.floor(evalExpression(idxExpr, vars));
+        if (idx < 0 || idx >= _arrays[name].length)
+            throw new Error(`Выход за пределы: ${name}[${idx}]`);
+        return _arrays[name][idx];
+    });
+
     // Заменяем имена переменных на их значения
-    // Сортируем по длине (сначала длинные), чтобы 'ab' не заменилось раньше 'a'
     const varNames = Object.keys(vars).sort((a, b) => b.length - a.length);
 
     for (const name of varNames) {
-        // Глобальная замена, учитываем отрицательные значения
         const regex = new RegExp('(?<![a-zA-Z0-9_])' + name + '(?![a-zA-Z0-9_])', 'g');
         expr = expr.replace(regex, vars[name]);
     }
@@ -1066,6 +1126,48 @@ function executeSingleBlock(block, scope) {
             executeBlockList(bodyBlocks, scope, true);
         }
     }
+
+    // Блоки массивов
+    if (type === 'array_create') {
+        const name = block.querySelector('.input-arr-name').value.trim();
+        const size = Math.floor(evalExpression(block.querySelector('.input-arr-size').value.trim(), scope));
+        if (!name) throw new Error('Пустое имя массива');
+        if (size <= 0 || size > 10000) {
+            throw new Error(`Недопустимый размер: ${size}`);
+        }
+        _arrays[name] = new Array(size).fill(0);
+        logToConsole(`Массив '${name}' размером ${size} создан`);
+    }
+
+    if (type === 'array_set') {
+        const name = block.querySelector('.input-arr-name').value.trim();
+        const idx  = Math.floor(evalExpression(block.querySelector('.input-arr-index').value.trim(), scope));
+        const val  = evalExpression(block.querySelector('.input-arr-value').value.trim(), scope);
+        if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+        if (idx < 0 || idx >= _arrays[name].length) throw new Error(`Выход за пределы: ${name}[${idx}]`);
+        _arrays[name][idx] = val;
+    }
+
+    if (type === 'array_get') {
+        const target = block.querySelector('.input-target').value.trim();
+        const name   = block.querySelector('.input-arr-name').value.trim();
+        const idx    = Math.floor(
+            evalExpression(block.querySelector('.input-arr-index').value.trim(), scope)
+        );
+
+        if (!target) throw new Error('Пустое имя переменной‑приёмника');
+        if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+        if (idx < 0 || idx >= _arrays[name].length)
+            throw new Error(`Выход за пределы: ${name}[${idx}]`);
+
+        scope[target] = _arrays[name][idx];
+    }
+
+    if (type === 'array_print') {
+        const name = block.querySelector('.input-arr-name').value.trim();
+        if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+        logToConsole(`${name}[] = [${_arrays[name].join(', ')}]`);
+    }
 }
 
 // Выполняет цепочку блоков последовательно
@@ -1099,6 +1201,7 @@ runBtn.addEventListener('click', () => {
     clearConsole();
     logToConsole('▶ Начало выполнения...');
     const vars = {};
+    _arrays = {};
     try {
         const blocks = Array.from(
             canvas.querySelectorAll(':scope > .workspace-block')
