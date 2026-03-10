@@ -268,7 +268,7 @@ function createWorkspaceBlock(type) {
         block.dataset.type = 'array_print';
         block.innerHTML = `
           <div class="block-header">
-            <span>вывести массив</span>
+            <span>вывести  массив</span>
             <input type="text" placeholder="a" class="input-arr-name" style="width: 35px;">
           </div>
           <div class="connector"></div>
