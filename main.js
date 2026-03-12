@@ -347,7 +347,7 @@ document.addEventListener('mousedown', (e) => {
         selectionStartX = e.clientX - canvasRect.left;
         selectionStartY = e.clientY - canvasRect.top;
 
-        // Создаём рамку выделения
+        // Создаём рамку выделени
         selectionBox = document.createElement('div');
         selectionBox.classList.add('selection-box');
         selectionBox.style.left = selectionStartX + 'px';
