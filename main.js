@@ -1,5 +1,4 @@
-let _arrays = {};
-const themeToggleBtn = document.getElementById('theme-toggle');
+let themeToggleBtn = document.getElementById('theme-toggle');
 const body = document.body;
 
 // Проверяем сохранённую тему в localStorage
@@ -130,17 +129,27 @@ function updatePlaceholderVisibility() {
     placeholder.style.display = hasBlocks ? 'none' : 'flex';
 }
 
-// Обновляет подсказку внутри тела цикла и условия
+// Обновляет подсказку внутри тела цикла, условия и else
 function updateLoopBodyHints() {
-    canvas.querySelectorAll('.loop-body, .if-body').forEach(body => {
+    canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
         const hasBlocks = body.querySelector('.workspace-block');
-        let hint = body.querySelector('.loop-body-hint, .if-body-hint');
+        let hint = body.querySelector('.loop-body-hint, .if-body-hint, .else-body-hint');
         if (hasBlocks) {
             if (hint) hint.remove();
         } else if (!hint) {
-            hint = document.createElement('div');
-            hint.className = body.classList.contains('loop-body') ? 'loop-body-hint' : 'if-body-hint';
-            hint.textContent = 'Перетащи блоки сюда';
+            if (body.classList.contains('loop-body')) {
+                hint = document.createElement('div');
+                hint.className = 'loop-body-hint';
+                hint.textContent = 'Перетащи блоки сюда';
+            } else if (body.classList.contains('if-body')) {
+                hint = document.createElement('div');
+                hint.className = 'if-body-hint';
+                hint.textContent = 'Перетащи блоки сюда';
+            } else if (body.classList.contains('else-body')) {
+                hint = document.createElement('div');
+                hint.className = 'else-body-hint';
+                hint.textContent = 'Перетащи блоки сюда (else)';
+            }
             body.appendChild(hint);
         }
     });
@@ -194,6 +203,9 @@ function createWorkspaceBlock(type) {
           </div>
           <div class="if-body">
             <div class="if-body-hint">Перетащи блоки сюда</div>
+          </div>
+          <div class="else-body">
+            <div class="else-body-hint">Перетащи блоки сюда (else)</div>
           </div>
           <div class="connector"></div>
           <div class="notch"></div>
@@ -281,6 +293,21 @@ function createWorkspaceBlock(type) {
           <div class="block-header">
             <span>сортировка пузырьком</span>
             <input type="text" placeholder="a" class="input-arr-name" style="width: 35px;">
+          </div>
+          <div class="connector"></div>
+          <div class="notch"></div>
+        `;
+    } else if (type === 'logical_op') {
+        block.classList.add('block-logic');
+        block.dataset.type = 'logical_op';
+        block.innerHTML = `
+          <div class="block-header">
+            <input type="text" placeholder="x" class="input-logic-left" style="width: 50px;">
+            <select class="input-logic-op">
+              <option value="and">and</option>
+              <option value="or">or</option>
+            </select>
+            <input type="text" placeholder="y" class="input-logic-right" style="width: 50px;">
           </div>
           <div class="connector"></div>
           <div class="notch"></div>
@@ -492,8 +519,8 @@ document.addEventListener('mousemove', (e) => {
 
         // Подсветка панели блоков
         updatePanelHighlight(e);
-        // Подсветка loop-body и if-body при наведении
-        canvas.querySelectorAll('.loop-body, .if-body').forEach(body => {
+        // Подсветка loop-body, if-body и else-body при наведении
+        canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
             const r = body.getBoundingClientRect();
             const over = e.clientX >= r.left && e.clientX <= r.right &&
                 e.clientY >= r.top  && e.clientY <= r.bottom;
@@ -526,8 +553,8 @@ document.addEventListener('mousemove', (e) => {
 
     // Подсветка панели блоков
     updatePanelHighlight(e);
-    // Подсветка loop-body и if-body при наведении
-    canvas.querySelectorAll('.loop-body, .if-body').forEach(body => {
+    // Подсветка loop-body, if-body и else-body при наведении
+    canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
         const r = body.getBoundingClientRect();
         const over = e.clientX >= r.left && e.clientX <= r.right &&
             e.clientY >= r.top  && e.clientY <= r.bottom;
@@ -647,7 +674,7 @@ document.addEventListener('mouseup', (e) => {
     }
 
     // Проверяем: блок отпущен над телом цикла или условия?
-    const loopBodies = Array.from(canvas.querySelectorAll('.loop-body, .if-body'));
+    const loopBodies = Array.from(canvas.querySelectorAll('.loop-body, .if-body, .else-body'));
     let nestTarget = null;
     for (const body of loopBodies) {
         const r = body.getBoundingClientRect();
@@ -665,7 +692,7 @@ document.addEventListener('mouseup', (e) => {
         draggedEl.style.zIndex = '';
         draggedEl.style.width  = '';
         nestTarget.appendChild(draggedEl);
-        canvas.querySelectorAll('.loop-body, .if-body').forEach(b => b.classList.remove('drop-target'));
+        canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(b => b.classList.remove('drop-target'));
         clearPanelHighlight();
         deleteArea.classList.remove('active');
         draggedEl = null;
@@ -673,7 +700,7 @@ document.addEventListener('mouseup', (e) => {
         updateLoopBodyHints();
         return;
     }
-    canvas.querySelectorAll('.loop-body, .if-body').forEach(b => b.classList.remove('drop-target'));
+    canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(b => b.classList.remove('drop-target'));
 
     // Одиночное перетаскивание
     const panelRect = blocksPanel.getBoundingClientRect();
@@ -816,15 +843,16 @@ function calculate(expression, vars) {
 function substituteVariables(expr, vars) {
     // Сначала заменяем обращения к элементам массивов a[i]
     expr = expr.replace(/([a-zA-Z_]\w*)\[([^\]]+)\]/g, (match, name, idxExpr) => {
-        if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+        if (vars._arrays && vars._arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+        if (!vars._arrays) throw new Error(`Массив '${name}' не объявлен`);
         const idx = Math.floor(evalExpression(idxExpr, vars));
-        if (idx < 0 || idx >= _arrays[name].length)
+        if (idx < 0 || idx >= vars._arrays[name].length)
             throw new Error(`Выход за пределы: ${name}[${idx}]`);
-        return _arrays[name][idx];
+        return vars._arrays[name][idx];
     });
 
     // Заменяем имена переменных на их значения
-    const varNames = Object.keys(vars).sort((a, b) => b.length - a.length);
+    const varNames = Object.keys(vars).filter(k => k !== '_arrays').sort((a, b) => b.length - a.length);
 
     for (const name of varNames) {
         const regex = new RegExp('(?<![a-zA-Z0-9_])' + name + '(?![a-zA-Z0-9_])', 'g');
@@ -1008,8 +1036,22 @@ function evaluateCondition(leftExpr, op, rightExpr, vars) {
         case '!=': return left != right;
         case '>=': return left >= right;
         case '<=': return left <= right;
+        case 'and': return !!left && !!right;
+        case 'or':  return !!left || !!right;
     }
     return false;
+}
+
+// Оценка логической операции (для блока logical_op)
+function evaluateLogicalOp(leftExpr, op, rightExpr, vars) {
+    const left  = evalExpression(leftExpr,  vars);
+    const right = evalExpression(rightExpr, vars);
+    if (op === 'and') {
+        return (left && right) ? 1 : 0;
+    } else if (op === 'or') {
+        return (left || right) ? 1 : 0;
+    }
+    return 0;
 }
 
 // Находит следующий блок в цепочке (снизу от текущего)
@@ -1074,118 +1116,150 @@ function findTopBlocks(blocks) {
     return topBlocks;
 }
 
-// Выполняет один блок
+// Выполняет один блок с возможностью подсветки ошибки
 function executeSingleBlock(block, scope) {
     const type = block.dataset.type;
+    try {
+        if (type === 'assign') {
+            const name = block.querySelector('.input-target').value.trim();
+            const expr = block.querySelector('.input-value').value.trim();
+            if (!name) throw new Error('Пустое имя переменной в блоке присваивания');
+            if (scope[name] === undefined) scope[name] = 0;
+            scope[name] = evalExpression(expr, scope);
+        }
 
-    if (type === 'assign') {
-        const name = block.querySelector('.input-target').value.trim();
-        const expr = block.querySelector('.input-value').value.trim();
-        if (!name) throw new Error('Пустое имя переменной в блоке присваивания');
-        if (scope[name] === undefined) scope[name] = 0;
-        scope[name] = evalExpression(expr, scope);
-    }
+        if (type === 'print') {
+            const expr = block.querySelector('.input-msg').value.trim();
+            logToConsole(String(evalExpression(expr, scope)));
+        }
 
-    if (type === 'print') {
-        const expr = block.querySelector('.input-msg').value.trim();
-        logToConsole(String(evalExpression(expr, scope)));
-    }
+        if (type === 'logical_op') {
+            const leftExpr  = block.querySelector('.input-logic-left').value.trim();
+            const op        = block.querySelector('.input-logic-op').value;
+            const rightExpr = block.querySelector('.input-logic-right').value.trim();
+            const result = evaluateLogicalOp(leftExpr, op, rightExpr, scope);
+            logToConsole(String(result));
+        }
 
-    if (type === 'loop') {
-        const leftExpr  = block.querySelector('.input-cond-left').value.trim();
-        const op        = block.querySelector('.input-cond-op').value;
-        const rightExpr = block.querySelector('.input-cond-right').value.trim();
+        if (type === 'loop') {
+            const leftExpr  = block.querySelector('.input-cond-left').value.trim();
+            const op        = block.querySelector('.input-cond-op').value;
+            const rightExpr = block.querySelector('.input-cond-right').value.trim();
 
-        const bodyBlocks = Array.from(
-            block.querySelector('.loop-body').querySelectorAll(':scope > .workspace-block')
-        );
+            const bodyBlocks = Array.from(
+                block.querySelector('.loop-body').querySelectorAll(':scope > .workspace-block')
+            );
 
-        const MAX_ITER = 1000;
-        let iterations = 0;
+            const MAX_ITER = 1000;
+            let iterations = 0;
 
-        while (evaluateCondition(leftExpr, op, rightExpr, scope)) {
-            if (iterations++ >= MAX_ITER) {
-                throw new Error('Превышен лимит 1000 итераций — бесконечный цикл?');
+            while (evaluateCondition(leftExpr, op, rightExpr, scope)) {
+                if (iterations++ >= MAX_ITER) {
+                    throw new Error('Превышен лимит 1000 итераций — бесконечный цикл?');
+                }
+                executeBlockList(bodyBlocks, scope, true);
             }
-            executeBlockList(bodyBlocks, scope, true);
         }
-    }
 
-    if (type === 'if') {
-        const leftExpr  = block.querySelector('.input-cond-left').value.trim();
-        const op        = block.querySelector('.input-cond-op').value;
-        const rightExpr = block.querySelector('.input-cond-right').value.trim();
+        if (type === 'if') {
+            const leftExpr  = block.querySelector('.input-cond-left').value.trim();
+            const op        = block.querySelector('.input-cond-op').value;
+            const rightExpr = block.querySelector('.input-cond-right').value.trim();
 
-        const bodyBlocks = Array.from(
-            block.querySelector('.if-body').querySelectorAll(':scope > .workspace-block')
-        );
+            const bodyBlocks = Array.from(
+                block.querySelector('.if-body').querySelectorAll(':scope > .workspace-block')
+            );
 
-        if (evaluateCondition(leftExpr, op, rightExpr, scope)) {
-            executeBlockList(bodyBlocks, scope, true);
+            const elseBodyBlocks = Array.from(
+                block.querySelector('.else-body').querySelectorAll(':scope > .workspace-block')
+            );
+
+            if (evaluateCondition(leftExpr, op, rightExpr, scope)) {
+                executeBlockList(bodyBlocks, scope, true);
+            } else if (elseBodyBlocks.length > 0) {
+                executeBlockList(elseBodyBlocks, scope, true);
+            }
         }
-    }
 
-    // Блоки массивов
-    if (type === 'array_create') {
-        const name = block.querySelector('.input-arr-name').value.trim();
-        const size = Math.floor(evalExpression(block.querySelector('.input-arr-size').value.trim(), scope));
-        if (!name) throw new Error('Пустое имя массива');
-        if (size <= 0 || size > 10000) {
-            throw new Error(`Недопустимый размер: ${size}`);
+        // Блоки массивов
+        if (type === 'array_create') {
+            const name = block.querySelector('.input-arr-name').value.trim();
+            const size = Math.floor(evalExpression(block.querySelector('.input-arr-size').value.trim(), scope));
+            if (!name) throw new Error('Пустое имя массива');
+            if (size <= 0 || size > 10000) {
+                throw new Error(`Недопустимый размер: ${size}`);
+            }
+            scope._arrays[name] = new Array(size).fill(0);
+            logToConsole(`Массив '${name}' размером ${size} создан`);
         }
-        _arrays[name] = new Array(size).fill(0);
-        logToConsole(`Массив '${name}' размером ${size} создан`);
-    }
 
-    if (type === 'array_set') {
-        const name = block.querySelector('.input-arr-name').value.trim();
-        const idx  = Math.floor(evalExpression(block.querySelector('.input-arr-index').value.trim(), scope));
-        const val  = evalExpression(block.querySelector('.input-arr-value').value.trim(), scope);
-        if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
-        if (idx < 0 || idx >= _arrays[name].length) throw new Error(`Выход за пределы: ${name}[${idx}]`);
-        _arrays[name][idx] = val;
-    }
+        if (type === 'array_set') {
+            const name = block.querySelector('.input-arr-name').value.trim();
+            const idx  = Math.floor(evalExpression(block.querySelector('.input-arr-index').value.trim(), scope));
+            const val  = evalExpression(block.querySelector('.input-arr-value').value.trim(), scope);
+            if (scope._arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+            if (idx < 0 || idx >= scope._arrays[name].length) throw new Error(`Выход за пределы: ${name}[${idx}]`);
+            scope._arrays[name][idx] = val;
+        }
 
-    if (type === 'array_get') {
-        const target = block.querySelector('.input-target').value.trim();
-        const name   = block.querySelector('.input-arr-name').value.trim();
-        const idx    = Math.floor(
-            evalExpression(block.querySelector('.input-arr-index').value.trim(), scope)
-        );
+        if (type === 'array_get') {
+            const target = block.querySelector('.input-target').value.trim();
+            const name   = block.querySelector('.input-arr-name').value.trim();
+            const idx    = Math.floor(
+                evalExpression(block.querySelector('.input-arr-index').value.trim(), scope)
+            );
 
-        if (!target) throw new Error('Пустое имя переменной‑приёмника');
-        if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
-        if (idx < 0 || idx >= _arrays[name].length)
-            throw new Error(`Выход за пределы: ${name}[${idx}]`);
+            if (!target) throw new Error('Пустое имя переменной‑приёмника');
+            if (scope._arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+            if (idx < 0 || idx >= scope._arrays[name].length)
+                throw new Error(`Выход за пределы: ${name}[${idx}]`);
 
-        scope[target] = _arrays[name][idx];
-    }
+            scope[target] = scope._arrays[name][idx];
+        }
 
-    if (type === 'array_print') {
-        const name = block.querySelector('.input-arr-name').value.trim();
-        if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
-        logToConsole(`${name}[] = [${_arrays[name].join(', ')}]`);
-    }
+        if (type === 'array_print') {
+            const name = block.querySelector('.input-arr-name').value.trim();
+            if (scope._arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+            logToConsole(`${name}[] = [${scope._arrays[name].join(', ')}]`);
+        }
 
-    if (type === 'bubble_sort') {
-        const name = block.querySelector('.input-arr-name').value.trim();
-        if (!name) throw new Error('Пустое имя массива для сортировки');
-        if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+        if (type === 'bubble_sort') {
+            const name = block.querySelector('.input-arr-name').value.trim();
+            if (!name) throw new Error('Пустое имя массива для сортировки');
+            if (scope._arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
 
-        // Сортировка пузырьком по возрастанию
-        const arr = _arrays[name];
-        const n = arr.length;
-        for (let i = 0; i < n - 1; i++) {
-            for (let j = 0; j < n - i - 1; j++) {
-                if (arr[j] > arr[j + 1]) {
-                    const temp = arr[j];
-                    arr[j] = arr[j + 1];
-                    arr[j + 1] = temp;
+            // Сортировка пузырьком по возрастанию
+            const arr = scope._arrays[name];
+            const n = arr.length;
+            for (let i = 0; i < n - 1; i++) {
+                for (let j = 0; j < n - i - 1; j++) {
+                    if (arr[j] > arr[j + 1]) {
+                        const temp = arr[j];
+                        arr[j] = arr[j + 1];
+                        arr[j + 1] = temp;
+                    }
                 }
             }
+            logToConsole(`Массив '${name}' отсортирован: [${arr.join(', ')}]`);
         }
-        logToConsole(`Массив '${name}' отсортирован: [${arr.join(', ')}]`);
+    } catch (e) {
+        // Добавляем ссылку на блок в ошибку для подсветки
+        e.errorBlock = block;
+        throw e;
     }
+}
+
+// Находит блок, в котором произошла ошибка
+function findErrorBlock(e) {
+    let current = e;
+    while (current && current.errorBlock === undefined) {
+        if (current.cause) {
+            current = current.cause;
+        } else {
+            break;
+        }
+    }
+    return current.errorBlock || null;
 }
 
 // Выполняет цепочку блоков последовательно
@@ -1213,11 +1287,24 @@ function executeBlockList(blocks, vars, isIsolated = false) {
     }
 }
 
+// Снимает подсветку ошибки со всех блоков
+function clearErrorHighlight() {
+    canvas.querySelectorAll('.workspace-block.block-error').forEach(block => {
+        block.classList.remove('block-error');
+    });
+}
+
+// Подсвечивает блок, в котором произошла ошибка
+function highlightBlockError(block) {
+    clearErrorHighlight();
+    block.classList.add('block-error');
+}
+
 runBtn.addEventListener('click', () => {
     clearConsole();
+    clearErrorHighlight();
     logToConsole('▶ Начало выполнения...');
-    const vars = {};
-    _arrays = {};
+    const vars = { _arrays: {} };
     try {
         const blocks = Array.from(
             canvas.querySelectorAll(':scope > .workspace-block')
@@ -1229,5 +1316,10 @@ runBtn.addEventListener('click', () => {
         logToConsole('Переменные: ' + JSON.stringify(vars));
     } catch (e) {
         logToConsole('✕ Ошибка: ' + e.message, true);
+        // Находим блок, который вызвал ошибку, через стек
+        const errorBlock = findErrorBlock(e);
+        if (errorBlock) {
+            highlightBlockError(errorBlock);
+        }
     }
 });

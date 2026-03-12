@@ -600,7 +600,8 @@
 
         /* Тела циклов и условий */
         .loop-body,
-        .if-body {
+        .if-body,
+        .else-body {
             background-color: var(--bg-block);
             margin: 8px -4px 4px 10px;
             padding: 8px 4px 4px 4px;
@@ -614,13 +615,15 @@
         }
 
         .loop-body.drop-target,
-        .if-body.drop-target {
+        .if-body.drop-target,
+        .else-body.drop-target {
             border-color: var(--accent);
             background-color: var(--accent-soft);
         }
 
         .loop-body-hint,
-        .if-body-hint {
+        .if-body-hint,
+        .else-body-hint {
             font-size: 10px;
             color: var(--text-soft);
             text-align: center;
@@ -628,9 +631,10 @@
             pointer-events: none;
         }
 
-        /* Блоки внутри тела цикла/условия */
+        /* Блоки внутри тела цикла/условия/else */
         .loop-body > .workspace-block,
-        .if-body > .workspace-block {
+        .if-body > .workspace-block,
+        .else-body > .workspace-block {
             position: relative !important;
             left: auto !important;
             top: auto !important;
@@ -835,6 +839,19 @@
             </div>
             <div class="block-meta">
                 sort массив по возрастанию
+            </div>
+            <div class="domino-dot-bottom-left"></div>
+            <div class="domino-dot-bottom-right"></div>
+        </div>
+
+        <div class="block" data-block-type="logical_op">
+            <div class="domino-dot-top-left"></div>
+            <div class="domino-dot-top-right"></div>
+            <div class="block-label">
+                <span class="block-name">Логическая операция</span>
+            </div>
+            <div class="block-meta">
+                and / or
             </div>
             <div class="domino-dot-bottom-left"></div>
             <div class="domino-dot-bottom-right"></div>
