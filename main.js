@@ -132,19 +132,22 @@ function updatePlaceholderVisibility() {
 
 // Обновляет подсказку внутри тела цикла и условия
 function updateLoopBodyHints() {
-    canvas.querySelectorAll('.loop-body, .if-body').forEach(body => {
+    canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
         const hasBlocks = body.querySelector('.workspace-block');
-        let hint = body.querySelector('.loop-body-hint, .if-body-hint');
+        let hint = body.querySelector('.loop-body-hint, .if-body-hint, .else-body-hint');
         if (hasBlocks) {
             if (hint) hint.remove();
         } else if (!hint) {
             hint = document.createElement('div');
-            hint.className = body.classList.contains('loop-body') ? 'loop-body-hint' : 'if-body-hint';
+            if (body.classList.contains('loop-body'))     hint.className = 'loop-body-hint';
+            else if (body.classList.contains('if-body'))  hint.className = 'if-body-hint';
+            else                                          hint.className = 'else-body-hint';
             hint.textContent = 'Перетащи блоки сюда';
             body.appendChild(hint);
         }
     });
 }
+
 
 // Фабрика workspace-блоков
 function createWorkspaceBlock(type) {
@@ -178,16 +181,16 @@ function createWorkspaceBlock(type) {
         block.classList.add('block-if');
         block.dataset.type = 'if';
         block.innerHTML = `
-          <div class="block-header">
+            <div class="block-header">
             <span>если</span>
             <input type="text" placeholder="x" class="input-cond-left" style="width: 40px;">
             <select class="input-cond-op">
-              <option value=">">></option>
-              <option value="<"><</option>
+              <option value=">">&gt;</option>
+              <option value="<">&lt;</option>
               <option value="==">=</option>
               <option value="!=">!=</option>
-              <option value=">=">>=</option>
-              <option value="<="><=</option>
+              <option value=">=">&gt;=</option>
+              <option value="<=">&lt;=</option>
             </select>
             <input type="text" placeholder="y" class="input-cond-right" style="width: 40px;">
             <span>то</span>
@@ -195,9 +198,13 @@ function createWorkspaceBlock(type) {
           <div class="if-body">
             <div class="if-body-hint">Перетащи блоки сюда</div>
           </div>
+          <div class="else-label">иначе</div>
+          <div class="else-body">
+            <div class="else-body-hint">Перетащи блоки сюда</div>
+          </div>
           <div class="connector"></div>
           <div class="notch"></div>
-        `;
+    `;
     } else if (type === 'loop') {
         block.classList.add('block-loop');
         block.dataset.type = 'loop';
@@ -493,7 +500,7 @@ document.addEventListener('mousemove', (e) => {
         // Подсветка панели блоков
         updatePanelHighlight(e);
         // Подсветка loop-body и if-body при наведении
-        canvas.querySelectorAll('.loop-body, .if-body').forEach(body => {
+        canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
             const r = body.getBoundingClientRect();
             const over = e.clientX >= r.left && e.clientX <= r.right &&
                 e.clientY >= r.top  && e.clientY <= r.bottom;
@@ -527,7 +534,7 @@ document.addEventListener('mousemove', (e) => {
     // Подсветка панели блоков
     updatePanelHighlight(e);
     // Подсветка loop-body и if-body при наведении
-    canvas.querySelectorAll('.loop-body, .if-body').forEach(body => {
+    canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
         const r = body.getBoundingClientRect();
         const over = e.clientX >= r.left && e.clientX <= r.right &&
             e.clientY >= r.top  && e.clientY <= r.bottom;
@@ -647,7 +654,7 @@ document.addEventListener('mouseup', (e) => {
     }
 
     // Проверяем: блок отпущен над телом цикла или условия?
-    const loopBodies = Array.from(canvas.querySelectorAll('.loop-body, .if-body'));
+    const loopBodies = Array.from(canvas.querySelectorAll('.loop-body, .if-body, .else-body'));
     let nestTarget = null;
     for (const body of loopBodies) {
         const r = body.getBoundingClientRect();
@@ -1116,14 +1123,22 @@ function executeSingleBlock(block, scope) {
         const op        = block.querySelector('.input-cond-op').value;
         const rightExpr = block.querySelector('.input-cond-right').value.trim();
 
-        const bodyBlocks = Array.from(
+        const ifBodyBlocks = Array.from(
             block.querySelector('.if-body').querySelectorAll(':scope > .workspace-block')
         );
 
+        const elseBodyEl = block.querySelector('.else-body');
+        const elseBodyBlocks = elseBodyEl
+            ? Array.from(elseBodyEl.querySelectorAll(':scope > .workspace-block'))
+            : [];
+
         if (evaluateCondition(leftExpr, op, rightExpr, scope)) {
-            executeBlockList(bodyBlocks, scope, true);
+            executeBlockList(ifBodyBlocks, scope, false);
+        } else {
+            executeBlockList(elseBodyBlocks, scope, false);
         }
     }
+
 
     // Блоки массивов
     if (type === 'array_create') {
