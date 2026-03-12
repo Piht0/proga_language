@@ -1107,7 +1107,7 @@ function executeSingleBlock(block, scope) {
             if (iterations++ >= MAX_ITER) {
                 throw new Error('Превышен лимит 1000 итераций — бесконечный цикл?');
             }
-            executeBlockList(bodyBlocks, scope, true);
+            executeBlockList(bodyBlocks, scope, false);
         }
     }
 
