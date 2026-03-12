@@ -397,7 +397,7 @@ document.addEventListener('mousedown', (e) => {
         draggedEl = block;
     } else {
         // Если блок находится внутри тела цикла или условия — вытащить его на холст
-        const parentLoopBody = wsBlock.closest('.loop-body, .if-body');
+        const parentLoopBody = wsBlock.closest('.loop-body, .if-body, .else-body');
         if (parentLoopBody) {
             const blockRect = wsBlock.getBoundingClientRect();
             const canvasRect = canvas.getBoundingClientRect();
@@ -672,7 +672,7 @@ document.addEventListener('mouseup', (e) => {
         draggedEl.style.zIndex = '';
         draggedEl.style.width  = '';
         nestTarget.appendChild(draggedEl);
-        canvas.querySelectorAll('.loop-body, .if-body').forEach(b => b.classList.remove('drop-target'));
+        canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(b => b.classList.remove('drop-target'));
         clearPanelHighlight();
         deleteArea.classList.remove('active');
         draggedEl = null;
@@ -680,7 +680,7 @@ document.addEventListener('mouseup', (e) => {
         updateLoopBodyHints();
         return;
     }
-    canvas.querySelectorAll('.loop-body, .if-body').forEach(b => b.classList.remove('drop-target'));
+    canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(b => b.classList.remove('drop-target'));
 
     // Одиночное перетаскивание
     const panelRect = blocksPanel.getBoundingClientRect();
