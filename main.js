@@ -1080,9 +1080,104 @@ function findTopBlocks(blocks) {
     }
     return topBlocks;
 }
+// ============================================
+// ЭТО НЕ ПРОСТО СМЕЛО ЭТО ПИЗДЕЦ КАК СМЕЛО
+// ============================================
 
-// Выполняет один блок
-function executeSingleBlock(block, scope) {
+function runProgram() {
+    clearConsole();
+    _arrays = {};
+
+    // Берём только прямые дочерние блоки холста (верхний уровень)
+    const allTopBlocks = Array.from(
+        canvas.querySelectorAll(':scope > .workspace-block')
+    );
+
+    if (allTopBlocks.length === 0) {
+        logToConsole('Нет блоков для выполнения.', true);
+        return;
+    }
+
+    // Находим начала цепочек (блоки без блока сверху)
+    const startBlocks = findTopBlocks(allTopBlocks);
+    startBlocks.sort((a, b) =>
+        parseFloat(a.style.top) - parseFloat(b.style.top)
+    );
+
+    const scope = {};          // переменные программы
+    const stack = [];          // явный стек фреймов
+
+    // Раскладываем все стартовые цепочки на стек
+    // В обратном порядке — чтобы первая цепочка оказалась на вершине
+    for (let ci = startBlocks.length - 1; ci >= 0; ci--) {
+        pushChain(stack, startBlocks[ci], allTopBlocks);
+    }
+
+    const MAX_TOTAL = 50000;   // защита от бесконечного числа шагов
+    let steps = 0;
+
+    try {
+        while (stack.length > 0) {
+            if (steps++ > MAX_TOTAL) {
+                throw new Error('Превышен лимит шагов — бесконечный цикл?');
+            }
+
+            const frame = stack.pop();
+
+            if (frame.type === 'block') {
+                executeSingleBlock(frame.block, scope, stack);
+            }
+
+            else if (frame.type === 'loop_check') {
+                const { block, iterations } = frame;
+                const leftExpr  = block.querySelector('.input-cond-left').value.trim();
+                const op        = block.querySelector('.input-cond-op').value;
+                const rightExpr = block.querySelector('.input-cond-right').value.trim();
+
+                if (evaluateCondition(leftExpr, op, rightExpr, scope)) {
+                    if (iterations >= 1000) {
+                        throw new Error('Превышен лимит 1000 итераций — бесконечный цикл?');
+                    }
+
+                    // Кладём loop_check обратно — он сработает после тела
+                    stack.push({ type: 'loop_check', block, iterations: iterations + 1 });
+
+                    // Кладём тело цикла поверх (в обратном порядке)
+                    const bodyBlocks = Array.from(
+                        block.querySelector('.loop-body')
+                            .querySelectorAll(':scope > .workspace-block')
+                    );
+                    for (let i = bodyBlocks.length - 1; i >= 0; i--) {
+                        stack.push({ type: 'block', block: bodyBlocks[i] });
+                    }
+                }
+                // Если условие false — просто не кладём ничего, цикл заканчивается
+            }
+        }
+
+        logToConsole('✓ Выполнено. Переменные: ' + JSON.stringify(scope));
+
+    } catch (err) {
+        logToConsole('Ошибка: ' + err.message, true);
+    }
+}
+
+// Кладёт на стек всю цепочку начиная с startBlock (в обратном порядке)
+function pushChain(stack, startBlock, allBlocks) {
+    const chain = [];
+    let current = startBlock;
+    while (current) {
+        chain.push(current);
+        current = findNextBlockInChain(current, allBlocks);
+    }
+    // Обратный порядок: первый блок цепочки окажется на вершине стека
+    for (let i = chain.length - 1; i >= 0; i--) {
+        stack.push({ type: 'block', block: chain[i] });
+    }
+}
+
+// Выполняет один блок. Для loop кладёт loop_check на стек вместо рекурсии.
+function executeSingleBlock(block, scope, stack) {
     const type = block.dataset.type;
 
     if (type === 'assign') {
@@ -1093,156 +1188,97 @@ function executeSingleBlock(block, scope) {
         scope[name] = evalExpression(expr, scope);
     }
 
-    if (type === 'print') {
+    else if (type === 'print') {
         const expr = block.querySelector('.input-msg').value.trim();
         logToConsole(String(evalExpression(expr, scope)));
     }
 
-    if (type === 'loop') {
-        const leftExpr  = block.querySelector('.input-cond-left').value.trim();
-        const op        = block.querySelector('.input-cond-op').value;
-        const rightExpr = block.querySelector('.input-cond-right').value.trim();
-
-        const bodyBlocks = Array.from(
-            block.querySelector('.loop-body').querySelectorAll(':scope > .workspace-block')
-        );
-
-        const MAX_ITER = 1000;
-        let iterations = 0;
-
-        while (evaluateCondition(leftExpr, op, rightExpr, scope)) {
-            if (iterations++ >= MAX_ITER) {
-                throw new Error('Превышен лимит 1000 итераций — бесконечный цикл?');
-            }
-            executeBlockList(bodyBlocks, scope, false);
-        }
+    else if (type === 'loop') {
+        // Не выполняем цикл здесь — кладём проверку условия на стек
+        stack.push({ type: 'loop_check', block, iterations: 0 });
     }
 
-    if (type === 'if') {
+    else if (type === 'if') {
         const leftExpr  = block.querySelector('.input-cond-left').value.trim();
         const op        = block.querySelector('.input-cond-op').value;
         const rightExpr = block.querySelector('.input-cond-right').value.trim();
 
         const ifBodyBlocks = Array.from(
-            block.querySelector('.if-body').querySelectorAll(':scope > .workspace-block')
+            block.querySelector('.if-body')
+                .querySelectorAll(':scope > .workspace-block')
         );
-
         const elseBodyEl = block.querySelector('.else-body');
         const elseBodyBlocks = elseBodyEl
             ? Array.from(elseBodyEl.querySelectorAll(':scope > .workspace-block'))
             : [];
 
-        if (evaluateCondition(leftExpr, op, rightExpr, scope)) {
-            executeBlockList(ifBodyBlocks, scope, false);
-        } else {
-            executeBlockList(elseBodyBlocks, scope, false);
+        const bodyToRun = evaluateCondition(leftExpr, op, rightExpr, scope)
+            ? ifBodyBlocks
+            : elseBodyBlocks;
+
+        // Кладём нужную ветку на стек (в обратном порядке)
+        for (let i = bodyToRun.length - 1; i >= 0; i--) {
+            stack.push({ type: 'block', block: bodyToRun[i] });
         }
     }
 
-
-    // Блоки массивов
-    if (type === 'array_create') {
+    else if (type === 'array_create') {
         const name = block.querySelector('.input-arr-name').value.trim();
-        const size = Math.floor(evalExpression(block.querySelector('.input-arr-size').value.trim(), scope));
+        const size = Math.floor(evalExpression(
+            block.querySelector('.input-arr-size').value.trim(), scope
+        ));
         if (!name) throw new Error('Пустое имя массива');
-        if (size <= 0 || size > 10000) {
-            throw new Error(`Недопустимый размер: ${size}`);
-        }
+        if (size <= 0 || size > 10000) throw new Error(`Недопустимый размер: ${size}`);
         _arrays[name] = new Array(size).fill(0);
         logToConsole(`Массив '${name}' размером ${size} создан`);
     }
 
-    if (type === 'array_set') {
+    else if (type === 'array_set') {
         const name = block.querySelector('.input-arr-name').value.trim();
-        const idx  = Math.floor(evalExpression(block.querySelector('.input-arr-index').value.trim(), scope));
-        const val  = evalExpression(block.querySelector('.input-arr-value').value.trim(), scope);
-        if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
-        if (idx < 0 || idx >= _arrays[name].length) throw new Error(`Выход за пределы: ${name}[${idx}]`);
-        _arrays[name][idx] = val;
-    }
-
-    if (type === 'array_get') {
-        const target = block.querySelector('.input-target').value.trim();
-        const name   = block.querySelector('.input-arr-name').value.trim();
-        const idx    = Math.floor(
-            evalExpression(block.querySelector('.input-arr-index').value.trim(), scope)
+        const idx  = Math.floor(evalExpression(
+            block.querySelector('.input-arr-index').value.trim(), scope
+        ));
+        const val  = evalExpression(
+            block.querySelector('.input-arr-value').value.trim(), scope
         );
-
-        if (!target) throw new Error('Пустое имя переменной‑приёмника');
         if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
         if (idx < 0 || idx >= _arrays[name].length)
             throw new Error(`Выход за пределы: ${name}[${idx}]`);
+        _arrays[name][idx] = val;
+    }
 
+    else if (type === 'array_get') {
+        const target = block.querySelector('.input-target').value.trim();
+        const name   = block.querySelector('.input-arr-name').value.trim();
+        const idx    = Math.floor(evalExpression(
+            block.querySelector('.input-arr-index').value.trim(), scope
+        ));
+        if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
+        if (idx < 0 || idx >= _arrays[name].length)
+            throw new Error(`Выход за пределы: ${name}[${idx}]`);
         scope[target] = _arrays[name][idx];
     }
 
-    if (type === 'array_print') {
+    else if (type === 'array_print') {
         const name = block.querySelector('.input-arr-name').value.trim();
         if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
-        logToConsole(`${name}[] = [${_arrays[name].join(', ')}]`);
+        logToConsole(`${name} = [${_arrays[name].join(', ')}]`);
     }
 
-    if (type === 'bubble_sort') {
+    else if (type === 'bubble_sort') {
         const name = block.querySelector('.input-arr-name').value.trim();
-        if (!name) throw new Error('Пустое имя массива для сортировки');
         if (_arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
-
-        // Сортировка пузырьком по возрастанию
         const arr = _arrays[name];
         const n = arr.length;
         for (let i = 0; i < n - 1; i++) {
             for (let j = 0; j < n - i - 1; j++) {
                 if (arr[j] > arr[j + 1]) {
-                    const temp = arr[j];
-                    arr[j] = arr[j + 1];
-                    arr[j + 1] = temp;
+                    const temp = arr[j]; arr[j] = arr[j + 1]; arr[j + 1] = temp;
                 }
             }
         }
-        logToConsole(`Массив '${name}' отсортирован: [${arr.join(', ')}]`);
+        logToConsole(`'${name}' отсортирован: [${arr.join(', ')}]`);
     }
 }
 
-// Выполняет цепочку блоков последовательно
-function executeChain(startBlock, allBlocks, scope) {
-    let current = startBlock;
-    while (current) {
-        executeSingleBlock(current, scope);
-        current = findNextBlockInChain(current, allBlocks);
-    }
-}
-
-// Рекурсивный исполнитель списка блоков с изолированными областями видимости
-function executeBlockList(blocks, vars, isIsolated = false) {
-    let scope;
-    if (isIsolated) {
-        scope = { ...vars };
-    } else {
-        scope = vars;
-    }
-
-    // Находим все верхние блоки и выполняем каждую цепочку
-    const topBlocks = findTopBlocks(blocks);
-    for (const startBlock of topBlocks) {
-        executeChain(startBlock, blocks, scope);
-    }
-}
-
-runBtn.addEventListener('click', () => {
-    clearConsole();
-    logToConsole('▶ Начало выполнения...');
-    const vars = {};
-    _arrays = {};
-    try {
-        const blocks = Array.from(
-            canvas.querySelectorAll(':scope > .workspace-block')
-        );
-
-        executeBlockList(blocks, vars);
-
-        logToConsole('■ Выполнение завершено.');
-        logToConsole('Переменные: ' + JSON.stringify(vars));
-    } catch (e) {
-        logToConsole('✕ Ошибка: ' + e.message, true);
-    }
-});
+runBtn.addEventListener('click', runProgram);
