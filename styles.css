@@ -1,0 +1,709 @@
+:root {
+    /* СВЕТЛАЯ ТЕМА (По умолчанию) */
+    --bg-page: #faf8f5;
+    --bg-panel: #ffffff;
+    --bg-panel-soft: #f5f0e8;
+    --bg-chip: #ede7df;
+    --bg-block: #faf8f5;
+
+    --border-subtle: #e5ddd5;
+    --border-medium: #d4c4b0;
+    --border-strong: #c4b396;
+
+    --text-main: #3d3630;
+    --text-muted: #7a7168;
+    --text-soft: #a89f91;
+
+    --accent: #b8956a;
+    --accent-soft: rgba(184, 149, 106, 0.15);
+
+    --block-vars: #7cb38b;
+    --block-logic: #d4a853;
+    --block-io: #6b9ac4;
+    --error: #d96c6c;
+
+    --domino-dot: #7a7168;
+
+    --icon-theme: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%233d3630' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'/%3E%3C/svg%3E");
+}
+
+/* ТЁМНАЯ ТЕМА */
+body.dark-theme {
+    --bg-page: #1a1816;
+    --bg-panel: #252220;
+    --bg-panel-soft: #2e2b29;
+    --bg-chip: #383532;
+    --bg-block: #2e2b29;
+
+    --border-subtle: #3f3b36;
+    --border-medium: #524d47;
+    --border-strong: #666059;
+
+    --text-main: #e6e2dd;
+    --text-muted: #9c958e;
+    --text-soft: #756f68;
+
+    --accent: #d4b085;
+    --accent-soft: rgba(212, 176, 133, 0.15);
+
+    --domino-dot: #9c958e;
+
+    --icon-theme: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23e6e2dd' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='5'/%3E%3Cpath d='M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42'/%3E%3C/svg%3E");
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:
+        radial-gradient(200% 200% at top, #c7a07a 0, transparent 100%),
+        radial-gradient(200% 200% at bottom, #e2ceb1 0, transparent 100%),
+        var(--bg-page);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.4s ease, color 0.4s ease;
+}
+
+body.dark-theme {
+    background:
+        radial-gradient(200% 200% at top, #3d3630 0, transparent 100%),
+        radial-gradient(200% 200% at bottom, #2e2b29 0, transparent 100%),
+        var(--bg-page);
+}
+
+header,
+.panel,
+.block,
+.workspace-canvas,
+.btn,
+.theme-toggle,
+input,
+select {
+    transition:
+        background-color 0.4s ease,
+        color 0.4s ease,
+        border-color 0.4s ease,
+        box-shadow 0.4s ease;
+}
+
+/* ============================================
+   ШАПКА САЙТА (HEADER)
+   ============================================ */
+header {
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(18px);
+    background: rgba(250, 248, 245, 0.85);
+    border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+body.dark-theme header {
+    background: rgba(37, 34, 32, 0.85);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--text-main);
+    font-size: 13px;
+    text-transform: uppercase;
+}
+
+.theme-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border-medium);
+    background: var(--bg-panel);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-right: 4px;
+    background-image: var(--icon-theme);
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.theme-toggle:hover {
+    transform: scale(1.05);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.theme-toggle:active {
+    transform: scale(0.95);
+}
+
+/* ============================================
+   КНОПКИ ДЕЙСТВИЙ
+   ============================================ */
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border-medium);
+    background: linear-gradient(135deg, #b8956a, #c4a574);
+    border-color: #b8956a;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition:
+        background 0.12s ease,
+        border-color 0.12s ease,
+        transform 0.08s ease,
+        box-shadow 0.12s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #b8956a, #c4a574);
+    border-color: #b8956a;
+    color: white;
+    font-weight: 500;
+}
+
+.btn-import {
+    background: linear-gradient(135deg, #b8956a, #c4a574);
+    border-color: #b8956a;
+    color: white;
+    font-weight: 500;
+}
+
+.btn:hover {
+    transform: translateY(-0.5px);
+    color: white;
+    background: red;
+    border-color: red;
+    box-shadow: 0 4px 12px red;
+}
+
+.btn-primary:hover {
+    color: white;
+    background: linear-gradient(135deg, #3c5c84, #7d99b4);
+    border-color: #7d99b4;
+    box-shadow: 0 4px 12px rgba(125, 153, 180, 0.4);
+}
+
+.btn-import:hover {
+    transform: translateY(-0.5px);
+    color: white;
+    background: limegreen;
+    border-color: limegreen;
+    box-shadow: 0 4px 12px limegreen;
+}
+
+.btn-save:hover {
+    transform: translateY(-0.5px);
+    color: white;
+    background: #2196f3;
+    border-color: #2196f3;
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+/* ============================================
+   ОСНОВНОЙ КОНТЕЙНЕР ПРИЛОЖЕНИЯ
+   ============================================ */
+.app {
+    flex: 1;
+    display: flex;
+    padding: 14px 16px 18px;
+    gap: 14px;
+}
+
+.panel {
+    background: var(--bg-panel);
+    border-radius: 18px;
+    border: 1px solid var(--border-subtle);
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.05),
+        0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================
+   ЗАГОЛОВОК ПАНЕЛИ (ЧИП)
+   ============================================ */
+.panel-header-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--bg-chip);
+    border: 1px solid var(--border-subtle);
+    margin-bottom: 10px;
+}
+
+.panel-header-chip-label {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* ============================================
+   ЛЕВАЯ ПАНЕЛЬ С БЛОКАМИ
+   ============================================ */
+.blocks-panel {
+    width: 270px;
+    max-width: 300px;
+    gap: 10px;
+}
+
+.blocks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* ============================================
+   БЛОКИ В СТИЛЕ ДОМИНО (Только для левой панели!)
+   ============================================ */
+.blocks-panel .block {
+    position: relative;
+    padding: 24px 12px 20px;
+    border-radius: 16px;
+    background: var(--bg-block);
+    border: 2px solid var(--border-medium);
+    cursor: grab;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-height: 110px;
+    justify-content: flex-start;
+}
+
+/* Точки по углам (верхние) */
+.blocks-panel .block .domino-dot-top-left,
+.blocks-panel .block .domino-dot-top-right {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--domino-dot);
+    border-radius: 50%;
+    top: 12px;
+}
+
+.blocks-panel .block .domino-dot-top-left {
+    left: 12px;
+}
+
+.blocks-panel .block .domino-dot-top-right {
+    right: 12px;
+}
+
+/* Точки по углам (нижние) */
+.blocks-panel .block .domino-dot-bottom-left,
+.blocks-panel .block .domino-dot-bottom-right {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--domino-dot);
+    border-radius: 50%;
+    bottom: 12px;
+}
+
+.blocks-panel .block .domino-dot-bottom-left {
+    left: 12px;
+}
+
+.blocks-panel .block .domino-dot-bottom-right {
+    right: 12px;
+}
+
+/* Контейнер для названия блока */
+.blocks-panel .block .block-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 1;
+    position: relative;
+    margin-top: 4px;
+}
+
+.blocks-panel .block-name {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text-main);
+    text-align: center;
+}
+
+/* Описание блока (нижняя часть) */
+.blocks-panel .block .block-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: center;
+    z-index: 1;
+    position: relative;
+    padding: 0 8px;
+}
+
+/* Эффект при наведении на блок */
+.blocks-panel .block:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   ОБЫЧНЫЕ БЛОКИ (не домино) - Для рабочей области
+   ============================================ */
+.block {
+    position: relative;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: var(--bg-block);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-main);
+    font-size: 12px;
+    display: inline-flex;
+    flex-direction: column;
+    cursor: grab;
+    user-select: none;
+    transition:
+        transform 0.1s ease,
+        box-shadow 0.12s ease,
+        border-color 0.12s ease,
+        background 0.12s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    min-width: 150px;
+    margin-bottom: 2px;
+}
+
+.block:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: var(--accent);
+    background: var(--bg-panel-soft);
+}
+
+.block-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.block-name {
+    font-weight: 500;
+}
+
+.block-meta {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+/* ============================================
+   ПРАВАЯ ПАНЕЛЬ (РАБОЧАЯ ОБЛАСТЬ)
+   ============================================ */
+.workspace-panel {
+    flex: 1;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+}
+
+.workspace-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.workspace-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-main);
+}
+
+/* Холст для размещения блоков */
+.workspace-canvas {
+    flex: 1;
+    border-radius: 16px;
+    border: 1px solid var(--border-subtle);
+    background:
+        radial-gradient(circle at 0 0, rgba(184, 149, 106, 0.05), transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(196, 196, 176, 0.05), transparent 55%),
+        var(--bg-panel-soft);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Рамка выделения */
+.selection-box {
+    position: absolute;
+    border: 2px solid rgba(184, 149, 106, 0.8);
+    background: rgba(184, 149, 106, 0.15);
+    border-radius: 8px;
+    pointer-events: none;
+    z-index: 50;
+}
+
+/* Выделенный блок */
+.workspace-block.selected {
+    box-shadow: 0 0 0 3px rgba(184, 149, 106, 0.9) !important;
+    border-color: rgba(184, 149, 106, 1) !important;
+}
+
+/* Заглушка для пустого холста */
+.workspace-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    pointer-events: none;
+    text-align: center;
+}
+
+.workspace-placeholder-title {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.workspace-placeholder-subtitle {
+    font-size: 11px;
+    color: var(--text-soft);
+    max-width: 260px;
+}
+
+/* ============================================
+   БЛОКИ НА ХОЛСТЕ (разные типы)
+   ============================================ */
+.workspace-block {
+    position: absolute;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: var(--bg-block);
+    border: 2px solid var(--block-vars);
+    color: var(--text-main);
+    font-size: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    cursor: grab;
+    user-select: none;
+    display: inline-flex;
+    flex-direction: column;
+    min-width: 170px;
+}
+
+.workspace-block.block-print {
+    border-color: var(--block-io);
+}
+
+.workspace-block.block-if {
+    border-color: var(--block-logic);
+    border-bottom-left-radius: 1;
+    border-bottom-right-radius: 1;
+}
+
+.workspace-block.block-logic {
+    border-color: var(--block-logic);
+}
+
+.workspace-block.block-assign {
+    border-color: var(--block-vars);
+}
+
+.block-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 2;
+    position: relative;
+}
+
+.workspace-block input,
+.workspace-block select {
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    padding: 2px 8px;
+    color: var(--text-main);
+    font-size: 11px;
+    min-width: 40px;
+    outline: none;
+}
+
+.workspace-block input:focus {
+    border-color: var(--accent);
+    background-color: var(--bg-panel-soft);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+/* Визуальные соединители между блоками */
+.connector {
+    position: absolute;
+    bottom: -4px;
+    left: 15px;
+    width: 24px;
+    height: 8px;
+    background-color: inherit;
+    border-radius: 0 0 4px 4px;
+    z-index: 1;
+    border-bottom: 2px solid inherit;
+    border-left: 2px solid inherit;
+    border-right: 2px solid inherit;
+}
+
+.notch {
+    position: absolute;
+    top: -4px;
+    left: 15px;
+    width: 24px;
+    height: 8px;
+    background-color: var(--bg-panel-soft);
+    z-index: 1;
+    clip-path: polygon(0 100%, 40% 100%, 50% 0%, 60% 100%, 100% 100%, 100% 0, 0 0);
+}
+
+.block-body {
+    background-color: var(--bg-block);
+    margin: 8px -4px 4px 10px;
+    padding: 8px 4px 4px 4px;
+    border-radius: 0 6px 6px 6px;
+    min-height: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px dashed var(--border-subtle);
+}
+
+/* Тела циклов и условий */
+.loop-body,
+.if-body,
+.else-body {
+    background-color: var(--bg-block);
+    margin: 8px -4px 4px 10px;
+    padding: 8px 4px 4px 4px;
+    border-radius: 6px;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 2px dashed var(--border-subtle);
+    position: relative;
+}
+
+.loop-body.drop-target,
+.if-body.drop-target,
+.else-body.drop-target {
+    border-color: var(--accent);
+    background-color: var(--accent-soft);
+}
+
+.loop-body-hint,
+.if-body-hint,
+.else-body-hint {
+    font-size: 10px;
+    color: var(--text-soft);
+    text-align: center;
+    padding: 8px;
+    pointer-events: none;
+}
+
+/* Блоки внутри тела цикла/условия/else */
+.loop-body > .workspace-block,
+.if-body > .workspace-block,
+.else-body > .workspace-block {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    margin: 2px;
+}
+
+/* ============================================
+   ЗОНА УДАЛЕНИЯ БЛОКОВ
+   ============================================ */
+.drop-delete-area {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    width: 120px;
+    height: 60px;
+    border-radius: 12px;
+    border: 2px dashed rgba(217, 108, 108, 0.5);
+    color: var(--error);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 224, 224, 0.9);
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.drop-delete-area.active {
+    border-color: var(--error);
+    background: rgba(217, 108, 108, 0.1);
+}
+
+.block-error {
+    box-shadow: 0 0 0 2px var(--error) !important;
+}
+
+/* ============================================
+   СКРОЛЛБАРЫ
+   ============================================ */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-medium);
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* ============================================
+   АДАПТИВНОСТЬ (МОБИЛЬНЫЕ УСТРОЙСТВА)
+   ============================================ */
+@media (max-width: 900px) {
+    .app {
+        flex-direction: column;
+    }
+
+    .blocks-panel {
+        width: 100%;
+        max-width: none;
+        order: 2;
+    }
+
+    .workspace-panel {
+        order: 1;
+    }
+}

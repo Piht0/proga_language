@@ -26,6 +26,9 @@ const placeholder = document.getElementById('workspace-placeholder');
 const resetBtn = document.getElementById('reset-btn');
 const deleteArea = document.getElementById('delete-area');
 const runBtn = document.querySelector('.btn.btn-primary');
+const saveBtn = document.getElementById('save-btn');
+const importBtn = document.getElementById('import-btn');
+const importFileInput = document.getElementById('import-file-input');
 
 let draggedEl = null;
 let dragOffsetX = 0;
@@ -70,7 +73,7 @@ function clearPanelHighlight() {
     blocksPanel.style.borderColor = '';
 }
 
-// Выделение блоков
+
 function clearSelection() {
     selectedBlocks.forEach(block => block.classList.remove('selected'));
     selectedBlocks = [];
@@ -129,7 +132,7 @@ function updatePlaceholderVisibility() {
     placeholder.style.display = hasBlocks ? 'none' : 'flex';
 }
 
-// Обновляет подсказку внутри тела цикла, условия и else
+
 function updateLoopBodyHints() {
     canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
         const hasBlocks = body.querySelector('.workspace-block');
