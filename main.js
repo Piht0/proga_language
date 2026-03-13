@@ -35,9 +35,9 @@ const saveBtn = document.getElementById('save-btn');
 const importBtn = document.getElementById('import-btn');
 const importFileInput = document.getElementById('import-file-input');
 
-// ============================================================================
+
 // ТЕМА (THEME)
-// ============================================================================
+
 
 const savedTheme = localStorage.getItem('theme');
 if (savedTheme === 'dark') {
@@ -49,19 +49,19 @@ themeToggleBtn.addEventListener('click', () => {
     localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
 });
 
-// ============================================================================
-// УТИЛИТЫ: ВЫДЕЛЕНИЕ, ПОДСВЕТКА
-// ============================================================================
 
-function clearSelection() {
+// УТИЛИТЫ: ВЫДЕЛЕНИЕ, ПОДСВЕТКА
+
+
+function clearSelection() { // убирает выделение
     selectedBlocks.forEach(block => block.classList.remove('selected'));
     selectedBlocks = [];
 }
 
-function selectBlocksInRect(rect) {
+function selectBlocksInRect(rect) { // выделение как на винде 
     clearSelection();
-    const canvasRect = canvas.getBoundingClientRect();
-    const blocks = Array.from(canvas.querySelectorAll('.workspace-block'));
+    const canvasRect = canvas.getBoundingClientRect(); // коорды холстика
+    const blocks = Array.from(canvas.querySelectorAll('.workspace-block')); 
 
     for (const block of blocks) {
         const blockRect = block.getBoundingClientRect();
@@ -83,21 +83,22 @@ function selectBlocksInRect(rect) {
         }
     }
 }
-
+// Прямоугольничек для выделения. ну чтоб всё робило
 function getSelectedBlocksBounds() {
-    if (selectedBlocks.length === 0) return null;
-
+    if (selectedBlocks.length === 0) {
+        return null;
+    }
     const canvasRect = canvas.getBoundingClientRect();
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
     for (const block of selectedBlocks) {
-        const x = parseFloat(block.style.left) || 0;
-        const y = parseFloat(block.style.top) || 0;
+        const x = parseFloat(block.style.left) || 0; // поз x
+        const y = parseFloat(block.style.top) || 0; // поз y
 
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x + block.offsetWidth);
-        maxY = Math.max(maxY, y + block.offsetHeight);
+        minX = Math.min(minX, x); // самый левый
+        minY = Math.min(minY, y); // самый верхний 
+        maxX = Math.max(maxX, x + block.offsetWidth); // самый правый 
+        maxY = Math.max(maxY, y + block.offsetHeight); // самый нижний 
     }
 
     return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
@@ -661,6 +662,7 @@ document.addEventListener('mouseup', (e) => {
         draggedEl = null;
         updatePlaceholderVisibility();
         updateLoopBodyHints();
+        updateBlockConnections();
         return;
     }
 
@@ -717,12 +719,16 @@ document.addEventListener('mouseup', (e) => {
     draggedEl.style.zIndex = '';
     draggedEl = null;
     updatePlaceholderVisibility();
+    
+    // Пересчитываем связи между блоками после перемещения
+    updateBlockConnections();
 });
 
 // Сброс workspace
 resetBtn.addEventListener('click', () => {
     canvas.querySelectorAll('.workspace-block').forEach((b) => b.remove());
     updatePlaceholderVisibility();
+    updateBlockConnections();
 });
 
 // Отключаем нативный drag
@@ -733,6 +739,15 @@ document.addEventListener('dragstart', (e) => {
 });
 
 updatePlaceholderVisibility();
+
+// Инициализация: присваиваем ID и пересчитываем связи для существующих блоков
+document.addEventListener('DOMContentLoaded', () => {
+    const blocks = Array.from(canvas.querySelectorAll('.workspace-block'));
+    blocks.forEach(block => {
+        if (!block.dataset.id) block.dataset.id = generateId();
+    });
+    updateBlockConnections();
+});
 
 // ============================================================================
 // КОНСОЛЬ
@@ -998,36 +1013,55 @@ function findNextBlockInChain(currentBlock, allBlocks) {
     return nextBlock;
 }
 
-function findTopBlocks(blocks) {
-    const canvasRect = canvas.getBoundingClientRect();
-    const topBlocks = [];
-
-    for (const block of blocks) {
-        const rect = block.getBoundingClientRect();
-        const blockTop = rect.top - canvasRect.top;
-        const blockCenterX = rect.left - canvasRect.left + rect.width / 2;
-
-        let hasBlockAbove = false;
-        for (const other of blocks) {
-            if (other === block) continue;
-            
-            const otherRect = other.getBoundingClientRect();
-            const otherBottom = otherRect.bottom - canvasRect.top;
-            const otherCenterX = otherRect.left - canvasRect.left + otherRect.width / 2;
-
-            const xClose = Math.abs(blockCenterX - otherCenterX) < 60;
-            const yClose = Math.abs(blockTop - otherBottom) < SNAP_DISTANCE + 10;
-
-            if (xClose && yClose && otherBottom < blockTop) {
-                hasBlockAbove = true;
-                break;
-            }
-        }
-
-        if (!hasBlockAbove) topBlocks.push(block);
-    }
+/**
+ * Пересчитывает связи nextBlockId для всех блоков на основе их координат
+ * Вызывается после перемещения блоков
+ */
+function updateBlockConnections() {
+    // Обрабатываем блоки на холсте
+    const blocks = Array.from(canvas.querySelectorAll('.workspace-block'));
     
-    return topBlocks;
+    blocks.forEach(block => {
+        const nextBlock = findNextBlockInChain(block, blocks);
+        if (nextBlock) {
+            block.dataset.nextBlockId = nextBlock.dataset.id;
+        } else {
+            delete block.dataset.nextBlockId;
+        }
+    });
+    
+    // Обрабатываем вложенные блоки (в loop-body, if-body, else-body)
+    canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
+        const bodyBlocks = Array.from(body.querySelectorAll(':scope > .workspace-block'));
+        bodyBlocks.forEach((block, i) => {
+            // Для вложенных блоков следующий = просто следующий в DOM порядке
+            const nextInBody = i < bodyBlocks.length - 1 ? bodyBlocks[i + 1] : null;
+            if (nextInBody) {
+                block.dataset.nextBlockId = nextInBody.dataset.id;
+            } else {
+                delete block.dataset.nextBlockId;
+            }
+        });
+    });
+}
+
+/**
+ * Находит верхние блоки (начало цепочек)
+ * Верхний блок = блок, на который нет ссылок из nextBlockId
+ */
+function findTopBlocks(blocks) {
+    const blockIds = new Set(blocks.map(b => b.dataset.id));
+    const referencedIds = new Set();
+    
+    // Собираем все nextBlockId
+    blocks.forEach(b => {
+        if (b.dataset.nextBlockId && blockIds.has(b.dataset.nextBlockId)) {
+            referencedIds.add(b.dataset.nextBlockId);
+        }
+    });
+    
+    // Блоки, на которые нет ссылок — это начала цепочек
+    return blocks.filter(b => !referencedIds.has(b.dataset.id));
 }
 
 // ============================================================================
@@ -1169,15 +1203,38 @@ function findErrorBlock(e) {
     return current.errorBlock || null;
 }
 
+/**
+ * Выполняет цепочку блоков последовательно
+ * Использует nextBlockId из data-атрибутов (детерминировано)
+ */
 function executeChain(startBlock, allBlocks, scope) {
+    const blockMap = new Map(allBlocks.map(b => [b.dataset.id, b]));
+    
     let current = startBlock;
     while (current) {
         executeSingleBlock(current, scope);
-        current = findNextBlockInChain(current, allBlocks);
+        
+        // Ищем следующий блок по nextBlockId
+        const nextBlockId = current.dataset.nextBlockId;
+        current = nextBlockId ? blockMap.get(nextBlockId) : null;
     }
 }
 
 function executeBlockList(blocks, vars, isIsolated = false) {
+    // Пересчитываем связи перед выполнением (только для блоков верхнего уровня)
+    const topLevelBlocks = blocks.filter(b => 
+        !b.closest('.loop-body, .if-body, .else-body')
+    );
+    
+    topLevelBlocks.forEach(block => {
+        const nextBlock = findNextBlockInChain(block, topLevelBlocks);
+        if (nextBlock) {
+            block.dataset.nextBlockId = nextBlock.dataset.id;
+        } else {
+            delete block.dataset.nextBlockId;
+        }
+    });
+    
     const scope = isIsolated ? { ...vars } : vars;
     const topBlocks = findTopBlocks(blocks);
     
@@ -1261,13 +1318,34 @@ function checkReview() {
 // ============================================================================
 
 /**
+ * Генерирует уникальный ID для блока
+ */
+function generateId() {
+    return 'blk_' + Math.random().toString(36).substr(2, 9);
+}
+
+/**
  * Собирает данные всех блоков в сериализуемый формат
  */
 function serializeProgram() {
     const blocks = Array.from(canvas.querySelectorAll('.workspace-block'));
     
+    // Сначала присваиваем ID всем блокам (если ещё нет)
+    blocks.forEach(block => {
+        if (!block.dataset.id) {
+            block.dataset.id = generateId();
+        }
+    });
+
+    // Определяем связи между блоками (кто за кем следует)
+    const blockMap = new Map(blocks.map(b => [b.dataset.id, b]));
+    
     return blocks.map(block => {
+        const nextBlock = findNextBlockInChain(block, blocks);
+        
         const data = {
+            id: block.dataset.id,
+            nextBlockId: nextBlock ? nextBlock.dataset.id : null,
             type: block.dataset.type,
             x: parseFloat(block.style.left) || 0,
             y: parseFloat(block.style.top) || 0,
@@ -1286,36 +1364,60 @@ function serializeProgram() {
         const elseBody = block.querySelector('.else-body');
 
         if (loopBody) {
-            data.loopBody = Array.from(loopBody.querySelectorAll(':scope > .workspace-block')).map(child => ({
-                type: child.dataset.type,
-                x: parseFloat(child.style.left) || 0,
-                y: parseFloat(child.style.top) || 0,
-                inputs: Object.fromEntries(
-                    Array.from(child.querySelectorAll('input, select')).map((inp, i) => [i, inp.value])
-                )
-            }));
+            const loopBlocks = Array.from(loopBody.querySelectorAll(':scope > .workspace-block'));
+            loopBlocks.forEach(b => { if (!b.dataset.id) b.dataset.id = generateId(); });
+            
+            data.loopBody = loopBlocks.map((child, i) => {
+                const nextInLoop = i < loopBlocks.length - 1 ? loopBlocks[i + 1] : null;
+                return {
+                    id: child.dataset.id,
+                    nextBlockId: nextInLoop ? nextInLoop.dataset.id : null,
+                    type: child.dataset.type,
+                    x: parseFloat(child.style.left) || 0,
+                    y: parseFloat(child.style.top) || 0,
+                    inputs: Object.fromEntries(
+                        Array.from(child.querySelectorAll('input, select')).map((inp, j) => [j, inp.value])
+                    )
+                };
+            });
         }
 
         if (ifBody) {
-            data.ifBody = Array.from(ifBody.querySelectorAll(':scope > .workspace-block')).map(child => ({
-                type: child.dataset.type,
-                x: parseFloat(child.style.left) || 0,
-                y: parseFloat(child.style.top) || 0,
-                inputs: Object.fromEntries(
-                    Array.from(child.querySelectorAll('input, select')).map((inp, i) => [i, inp.value])
-                )
-            }));
+            const ifBlocks = Array.from(ifBody.querySelectorAll(':scope > .workspace-block'));
+            ifBlocks.forEach(b => { if (!b.dataset.id) b.dataset.id = generateId(); });
+            
+            data.ifBody = ifBlocks.map((child, i) => {
+                const nextInIf = i < ifBlocks.length - 1 ? ifBlocks[i + 1] : null;
+                return {
+                    id: child.dataset.id,
+                    nextBlockId: nextInIf ? nextInIf.dataset.id : null,
+                    type: child.dataset.type,
+                    x: parseFloat(child.style.left) || 0,
+                    y: parseFloat(child.style.top) || 0,
+                    inputs: Object.fromEntries(
+                        Array.from(child.querySelectorAll('input, select')).map((inp, j) => [j, inp.value])
+                    )
+                };
+            });
         }
 
         if (elseBody) {
-            data.elseBody = Array.from(elseBody.querySelectorAll(':scope > .workspace-block')).map(child => ({
-                type: child.dataset.type,
-                x: parseFloat(child.style.left) || 0,
-                y: parseFloat(child.style.top) || 0,
-                inputs: Object.fromEntries(
-                    Array.from(child.querySelectorAll('input, select')).map((inp, i) => [i, inp.value])
-                )
-            }));
+            const elseBlocks = Array.from(elseBody.querySelectorAll(':scope > .workspace-block'));
+            elseBlocks.forEach(b => { if (!b.dataset.id) b.dataset.id = generateId(); });
+            
+            data.elseBody = elseBlocks.map((child, i) => {
+                const nextInElse = i < elseBlocks.length - 1 ? elseBlocks[i + 1] : null;
+                return {
+                    id: child.dataset.id,
+                    nextBlockId: nextInElse ? nextInElse.dataset.id : null,
+                    type: child.dataset.type,
+                    x: parseFloat(child.style.left) || 0,
+                    y: parseFloat(child.style.top) || 0,
+                    inputs: Object.fromEntries(
+                        Array.from(child.querySelectorAll('input, select')).map((inp, j) => [j, inp.value])
+                    )
+                };
+            });
         }
 
         return data;
@@ -1327,6 +1429,12 @@ function serializeProgram() {
  */
 function deserializeBlock(data, isNested = false) {
     const block = createWorkspaceBlock(data.type);
+    
+    // Сохраняем ID
+    block.dataset.id = data.id;
+    if (data.nextBlockId) {
+        block.dataset.nextBlockId = data.nextBlockId;
+    }
     
     if (!isNested) {
         block.style.left = data.x + 'px';
