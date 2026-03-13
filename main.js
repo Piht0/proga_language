@@ -1,41 +1,14 @@
-let themeToggleBtn = document.getElementById('theme-toggle');
-const body = document.body;
+// ============================================================================
+// КОНСТАНТЫ И СОСТОЯНИЕ
+// ============================================================================
 
-// Проверяем сохранённую тему в localStorage
-const savedTheme = localStorage.getItem('theme');
-if (savedTheme === 'dark') {
-    body.classList.add('dark-theme');
-}
-
-// Обработчик клика по кнопке темы
-themeToggleBtn.addEventListener('click', () => {
-    body.classList.toggle('dark-theme');
-
-    // Сохраняем выбор пользователя
-    if (body.classList.contains('dark-theme')) {
-        localStorage.setItem('theme', 'dark');
-    } else {
-        localStorage.setItem('theme', 'light');
-    }
-});
-
-
-const blocksPanel = document.querySelector('.blocks-panel');
-const canvas = document.getElementById('workspace-canvas');
-const placeholder = document.getElementById('workspace-placeholder');
-const resetBtn = document.getElementById('reset-btn');
-const deleteArea = document.getElementById('delete-area');
-const runBtn = document.querySelector('.btn.btn-primary');
-const saveBtn = document.getElementById('save-btn');
-const importBtn = document.getElementById('import-btn');
-const importFileInput = document.getElementById('import-file-input');
+const SNAP_DISTANCE = 20;
+const STACK_X_OFFSET = 0;
+const MAX_LOOP_ITERATIONS = 1000;
 
 let draggedEl = null;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
-
-const SNAP_DISTANCE = 20;
-const STACK_X_OFFSET = 0;
 
 // Для выделения группой
 let isSelecting = false;
@@ -47,32 +20,38 @@ let isDraggingGroup = false;
 let groupDragOffsetX = 0;
 let groupDragOffsetY = 0;
 
-// Подсветка панели блоков при наведении
-function updatePanelHighlight(e) {
-    if (!draggedEl) return;
+// ============================================================================
+// DOM-ЭЛЕМЕНТЫ
+// ============================================================================
 
-    const panelRect = blocksPanel.getBoundingClientRect();
-    const isInPanel = (
-        e.clientX >= panelRect.left &&
-        e.clientX <= panelRect.right &&
-        e.clientY >= panelRect.top &&
-        e.clientY <= panelRect.bottom
-    );
+const themeToggleBtn = document.getElementById('theme-toggle');
+const blocksPanel = document.querySelector('.blocks-panel');
+const canvas = document.getElementById('workspace-canvas');
+const placeholder = document.getElementById('workspace-placeholder');
+const resetBtn = document.getElementById('reset-btn');
+const deleteArea = document.getElementById('delete-area');
+const runBtn = document.querySelector('.btn.btn-primary');
+const saveBtn = document.getElementById('save-btn');
+const importBtn = document.getElementById('import-btn');
+const importFileInput = document.getElementById('import-file-input');
 
-    if (isInPanel) {
-        blocksPanel.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.7)';
-        blocksPanel.style.borderColor = 'rgba(239, 68, 68, 0.9)';
-    } else {
-        blocksPanel.style.boxShadow = '';
-        blocksPanel.style.borderColor = '';
-    }
+// ============================================================================
+// ТЕМА (THEME)
+// ============================================================================
+
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'dark') {
+    document.body.classList.add('dark-theme');
 }
 
-function clearPanelHighlight() {
-    blocksPanel.style.boxShadow = '';
-    blocksPanel.style.borderColor = '';
-}
+themeToggleBtn.addEventListener('click', () => {
+    document.body.classList.toggle('dark-theme');
+    localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+});
 
+// ============================================================================
+// УТИЛИТЫ: ВЫДЕЛЕНИЕ, ПОДСВЕТКА
+// ============================================================================
 
 function clearSelection() {
     selectedBlocks.forEach(block => block.classList.remove('selected'));
@@ -81,14 +60,11 @@ function clearSelection() {
 
 function selectBlocksInRect(rect) {
     clearSelection();
-
     const canvasRect = canvas.getBoundingClientRect();
     const blocks = Array.from(canvas.querySelectorAll('.workspace-block'));
 
     for (const block of blocks) {
         const blockRect = block.getBoundingClientRect();
-
-        // Проверяем, пересекается ли блок с рамкой выделения
         const blockLeft = blockRect.left - canvasRect.left;
         const blockTop = blockRect.top - canvasRect.top;
         const blockRight = blockLeft + block.offsetWidth;
@@ -132,189 +108,223 @@ function updatePlaceholderVisibility() {
     placeholder.style.display = hasBlocks ? 'none' : 'flex';
 }
 
-
 function updateLoopBodyHints() {
     canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
         const hasBlocks = body.querySelector('.workspace-block');
         let hint = body.querySelector('.loop-body-hint, .if-body-hint, .else-body-hint');
+        
         if (hasBlocks) {
             if (hint) hint.remove();
         } else if (!hint) {
-            if (body.classList.contains('loop-body')) {
-                hint = document.createElement('div');
-                hint.className = 'loop-body-hint';
-                hint.textContent = 'Перетащи блоки сюда';
-            } else if (body.classList.contains('if-body')) {
-                hint = document.createElement('div');
-                hint.className = 'if-body-hint';
-                hint.textContent = 'Перетащи блоки сюда';
-            } else if (body.classList.contains('else-body')) {
-                hint = document.createElement('div');
-                hint.className = 'else-body-hint';
-                hint.textContent = 'Перетащи блоки сюда (else)';
-            }
+            hint = document.createElement('div');
+            hint.className = body.classList.contains('loop-body') ? 'loop-body-hint' :
+                             body.classList.contains('if-body') ? 'if-body-hint' : 'else-body-hint';
+            hint.textContent = body.classList.contains('else-body') 
+                ? 'Перетащи блоки сюда (else)' 
+                : 'Перетащи блоки сюда';
             body.appendChild(hint);
         }
     });
 }
 
-// Фабрика workspace-блоков
+function updatePanelHighlight(e) {
+    if (!draggedEl) return;
+
+    const panelRect = blocksPanel.getBoundingClientRect();
+    const isInPanel = (
+        e.clientX >= panelRect.left &&
+        e.clientX <= panelRect.right &&
+        e.clientY >= panelRect.top &&
+        e.clientY <= panelRect.bottom
+    );
+
+    if (isInPanel) {
+        blocksPanel.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.7)';
+        blocksPanel.style.borderColor = 'rgba(239, 68, 68, 0.9)';
+    } else {
+        blocksPanel.style.boxShadow = '';
+        blocksPanel.style.borderColor = '';
+    }
+}
+
+function clearPanelHighlight() {
+    blocksPanel.style.boxShadow = '';
+    blocksPanel.style.borderColor = '';
+}
+
+function clearErrorHighlight() {
+    canvas.querySelectorAll('.workspace-block.block-error').forEach(block => {
+        block.classList.remove('block-error');
+    });
+}
+
+function highlightBlockError(block) {
+    clearErrorHighlight();
+    block.classList.add('block-error');
+}
+
+// ============================================================================
+// ФАБРИКА БЛОКОВ
+// ============================================================================
+
 function createWorkspaceBlock(type) {
     const block = document.createElement('div');
     block.classList.add('workspace-block');
 
-    if (type === 'print') {
-        block.classList.add('block-print');
-        block.dataset.type = 'print';
-        block.innerHTML = `
-          <div class="block-header">
-            <span>вывести</span>
-            <input type="text" placeholder="значение" class="input-msg" style="width: 100px;">
-          </div>
-          <div class="connector"></div>
-          <div class="notch"></div>
-        `;
-    } else if (type === 'assign') {
-        block.classList.add('block-assign');
-        block.dataset.type = 'assign';
-        block.innerHTML = `
-          <div class="block-header">
-            <input type="text" placeholder="x" class="input-target" style="width: 50px;">
-            <span>:=</span>
-            <input type="text" placeholder="5" class="input-value" style="width: 80px;">
-          </div>
-          <div class="connector"></div>
-          <div class="notch"></div>
-        `;
-    } else if (type === 'if') {
-        block.classList.add('block-if');
-        block.dataset.type = 'if';
-        block.innerHTML = `
-          <div class="block-header">
-            <span>если</span>
-            <input type="text" placeholder="x" class="input-cond-left" style="width: 40px;">
-            <select class="input-cond-op">
-              <option value=">">></option>
-              <option value="<"><</option>
-              <option value="==">=</option>
-              <option value="!=">!=</option>
-              <option value=">=">>=</option>
-              <option value="<="><=</option>
-            </select>
-            <input type="text" placeholder="y" class="input-cond-right" style="width: 40px;">
-            <span>то</span>
-          </div>
-          <div class="if-body">
-            <div class="if-body-hint">Перетащи блоки сюда</div>
-          </div>
-          <div class="else-body">
-            <div class="else-body-hint">Перетащи блоки сюда (else)</div>
-          </div>
-          <div class="connector"></div>
-          <div class="notch"></div>
-        `;
-    } else if (type === 'loop') {
-        block.classList.add('block-loop');
-        block.dataset.type = 'loop';
-        block.innerHTML = `
-          <div class="block-header">
-            <span>пока</span>
-            <input type="text" placeholder="i" class="input-cond-left" style="width:36px;">
-            <select class="input-cond-op">
-              <option value="<">&lt;</option>
-              <option value=">">&gt;</option>
-              <option value="==">==</option>
-              <option value="!=">!=</option>
-              <option value=">=">&gt;=</option>
-              <option value="<=">&lt;=</option>
-            </select>
-            <input type="text" placeholder="10" class="input-cond-right" style="width:36px;">
-          </div>
-          <div class="loop-body">
-            <div class="loop-body-hint">Перетащи блоки сюда</div>
-          </div>
-          <div class="connector"></div>
-          <div class="notch"></div>
-        `;
-    } else if (type === 'array_create') {
-        block.classList.add('block-assign');
-        block.dataset.type = 'array_create';
-        block.innerHTML = `
-          <div class="block-header">
-            <span>массив</span>
-            <input type="text" placeholder="a" class="input-arr-name" style="width: 35px;">
-            <span>размер</span>
-            <input type="text" placeholder="5" class="input-arr-size" style="width: 35px;">
-          </div>
-          <div class="connector"></div>
-          <div class="notch"></div>
-        `;
-    } else if (type === 'array_set') {
-        block.classList.add('block-assign');
-        block.dataset.type = 'array_set';
-        block.innerHTML = `
-          <div class="block-header">
-            <input type="text" placeholder="a" class="input-arr-name" style="width: 30px;">
-            <span>[</span>
-            <input type="text" placeholder="i" class="input-arr-index" style="width: 30px;">
-            <span>]:=</span>
-            <input type="text" placeholder="0" class="input-arr-value" style="width: 65px;">
-          </div>
-          <div class="connector"></div>
-          <div class="notch"></div>
-        `;
-    } else if (type === 'array_get') {
-        block.classList.add('block-assign');
-        block.dataset.type = 'array_get';
-        block.innerHTML = `
-          <div class="block-header">
-            <input type="text" placeholder="x" class="input-target" style="width: 35px;">
-            <span>:=</span>
-            <input type="text" placeholder="a" class="input-arr-name" style="width: 30px;">
-            <span>[</span>
-            <input type="text" placeholder="i" class="input-arr-index" style="width: 30px;">
-            <span>]</span>
-          </div>
-          <div class="connector"></div>
-          <div class="notch"></div>
-        `;
-    } else if (type === 'array_print') {
-        block.classList.add('block-print');
-        block.dataset.type = 'array_print';
-        block.innerHTML = `
-          <div class="block-header">
-            <span>вывести  массив</span>
-            <input type="text" placeholder="a" class="input-arr-name" style="width: 35px;">
-          </div>
-          <div class="connector"></div>
-          <div class="notch"></div>
-        `;
-    } else if (type === 'bubble_sort') {
-        block.classList.add('block-logic');
-        block.dataset.type = 'bubble_sort';
-        block.innerHTML = `
-          <div class="block-header">
-            <span>сортировка пузырьком</span>
-            <input type="text" placeholder="a" class="input-arr-name" style="width: 35px;">
-          </div>
-          <div class="connector"></div>
-          <div class="notch"></div>
-        `;
-    } else if (type === 'logical_op') {
-        block.classList.add('block-logic');
-        block.dataset.type = 'logical_op';
-        block.innerHTML = `
-          <div class="block-header">
-            <input type="text" placeholder="x" class="input-logic-left" style="width: 50px;">
-            <select class="input-logic-op">
-              <option value="and">and</option>
-              <option value="or">or</option>
-            </select>
-            <input type="text" placeholder="y" class="input-logic-right" style="width: 50px;">
-          </div>
-          <div class="connector"></div>
-          <div class="notch"></div>
-        `;
+    const configs = {
+        print: {
+            class: 'block-print',
+            html: `
+                <div class="block-header">
+                    <span>вывести</span>
+                    <input type="text" placeholder="значение" class="input-msg" style="width: 100px;">
+                </div>
+                <div class="connector"></div>
+                <div class="notch"></div>
+            `
+        },
+        assign: {
+            class: 'block-assign',
+            html: `
+                <div class="block-header">
+                    <input type="text" placeholder="x" class="input-target" style="width: 50px;">
+                    <span>:=</span>
+                    <input type="text" placeholder="5" class="input-value" style="width: 80px;">
+                </div>
+                <div class="connector"></div>
+                <div class="notch"></div>
+            `
+        },
+        if: {
+            class: 'block-if',
+            html: `
+                <div class="block-header">
+                    <span>если</span>
+                    <input type="text" placeholder="x" class="input-cond-left" style="width: 40px;">
+                    <select class="input-cond-op">
+                        <option value=">">></option>
+                        <option value="<"><</option>
+                        <option value="==">=</option>
+                        <option value="!=">!=</option>
+                        <option value=">=">>=</option>
+                        <option value="<="><=</option>
+                    </select>
+                    <input type="text" placeholder="y" class="input-cond-right" style="width: 40px;">
+                    <span>то</span>
+                </div>
+                <div class="if-body"><div class="if-body-hint">Перетащи блоки сюда</div></div>
+                <div class="else-body"><div class="else-body-hint">Перетащи блоки сюда (else)</div></div>
+                <div class="connector"></div>
+                <div class="notch"></div>
+            `
+        },
+        loop: {
+            class: 'block-loop',
+            html: `
+                <div class="block-header">
+                    <span>пока</span>
+                    <input type="text" placeholder="i" class="input-cond-left" style="width:36px;">
+                    <select class="input-cond-op">
+                        <option value="<">&lt;</option>
+                        <option value=">">&gt;</option>
+                        <option value="==">==</option>
+                        <option value="!=">!=</option>
+                        <option value=">=">&gt;=</option>
+                        <option value="<=">&lt;=</option>
+                    </select>
+                    <input type="text" placeholder="10" class="input-cond-right" style="width:36px;">
+                </div>
+                <div class="loop-body"><div class="loop-body-hint">Перетащи блоки сюда</div></div>
+                <div class="connector"></div>
+                <div class="notch"></div>
+            `
+        },
+        array_create: {
+            class: 'block-assign',
+            html: `
+                <div class="block-header">
+                    <span>массив</span>
+                    <input type="text" placeholder="a" class="input-arr-name" style="width: 35px;">
+                    <span>размер</span>
+                    <input type="text" placeholder="5" class="input-arr-size" style="width: 35px;">
+                </div>
+                <div class="connector"></div>
+                <div class="notch"></div>
+            `
+        },
+        array_set: {
+            class: 'block-assign',
+            html: `
+                <div class="block-header">
+                    <input type="text" placeholder="a" class="input-arr-name" style="width: 30px;">
+                    <span>[</span>
+                    <input type="text" placeholder="i" class="input-arr-index" style="width: 30px;">
+                    <span>]:=</span>
+                    <input type="text" placeholder="0" class="input-arr-value" style="width: 65px;">
+                </div>
+                <div class="connector"></div>
+                <div class="notch"></div>
+            `
+        },
+        array_get: {
+            class: 'block-assign',
+            html: `
+                <div class="block-header">
+                    <input type="text" placeholder="x" class="input-target" style="width: 35px;">
+                    <span>:=</span>
+                    <input type="text" placeholder="a" class="input-arr-name" style="width: 30px;">
+                    <span>[</span>
+                    <input type="text" placeholder="i" class="input-arr-index" style="width: 30px;">
+                    <span>]</span>
+                </div>
+                <div class="connector"></div>
+                <div class="notch"></div>
+            `
+        },
+        array_print: {
+            class: 'block-print',
+            html: `
+                <div class="block-header">
+                    <span>вывести  массив</span>
+                    <input type="text" placeholder="a" class="input-arr-name" style="width: 35px;">
+                </div>
+                <div class="connector"></div>
+                <div class="notch"></div>
+            `
+        },
+        bubble_sort: {
+            class: 'block-logic',
+            html: `
+                <div class="block-header">
+                    <span>сортировка пузырьком</span>
+                    <input type="text" placeholder="a" class="input-arr-name" style="width: 35px;">
+                </div>
+                <div class="connector"></div>
+                <div class="notch"></div>
+            `
+        },
+        logical_op: {
+            class: 'block-logic',
+            html: `
+                <div class="block-header">
+                    <input type="text" placeholder="x" class="input-logic-left" style="width: 50px;">
+                    <select class="input-logic-op">
+                        <option value="and">and</option>
+                        <option value="or">or</option>
+                    </select>
+                    <input type="text" placeholder="y" class="input-logic-right" style="width: 50px;">
+                </div>
+                <div class="connector"></div>
+                <div class="notch"></div>
+            `
+        }
+    };
+
+    const config = configs[type];
+    if (config) {
+        block.classList.add(config.class);
+        block.dataset.type = type;
+        block.innerHTML = config.html;
     } else {
         block.textContent = type;
         block.innerHTML += `<div class="connector"></div><div class="notch"></div>`;
@@ -361,23 +371,24 @@ function findSnapTarget(block) {
     return best;
 }
 
-// mousedown: старт drag или выделения
+// ============================================================================
+// DRAG & DROP: ОБРАБОТЧИКИ СОБЫТИЙ
+// ============================================================================
+
 document.addEventListener('mousedown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
     const paletteBlock = e.target.closest('.block[data-block-type]');
     const wsBlock = e.target.closest('.workspace-block');
 
-    // Если клик по пустому месту в canvas — начинаем выделение рамкой или снимаем выделение
+    // Клик по пустому месту в canvas — выделение рамкой
     if (!paletteBlock && !wsBlock && e.target.closest('.workspace-canvas')) {
         e.preventDefault();
-
         const canvasRect = canvas.getBoundingClientRect();
         isSelecting = true;
         selectionStartX = e.clientX - canvasRect.left;
         selectionStartY = e.clientY - canvasRect.top;
 
-        // Создаём рамку выделени
         selectionBox = document.createElement('div');
         selectionBox.classList.add('selection-box');
         selectionBox.style.left = selectionStartX + 'px';
@@ -386,44 +397,33 @@ document.addEventListener('mousedown', (e) => {
         selectionBox.style.height = '0';
         canvas.appendChild(selectionBox);
 
-        // Снимаем предыдущее выделение, если нет Ctrl
-        if (!e.ctrlKey && !e.metaKey) {
-            clearSelection();
-        }
+        if (!e.ctrlKey && !e.metaKey) clearSelection();
         return;
     }
 
     if (!paletteBlock && !wsBlock) {
-        // Клик вне canvas — снимаем выделение
         clearSelection();
         return;
     }
 
     e.preventDefault();
-
     const canvasRect = canvas.getBoundingClientRect();
 
     if (paletteBlock) {
-        // Снимаем выделение при создании нового блока
         clearSelection();
-
         const type = paletteBlock.dataset.blockType;
         const block = createWorkspaceBlock(type);
         canvas.appendChild(block);
 
-        const x = e.clientX - canvasRect.left - block.offsetWidth / 2;
-        const y = e.clientY - canvasRect.top - block.offsetHeight / 2;
-
-        block.style.left = x + 'px';
-        block.style.top = y + 'px';
+        block.style.left = (e.clientX - canvasRect.left - block.offsetWidth / 2) + 'px';
+        block.style.top = (e.clientY - canvasRect.top - block.offsetHeight / 2) + 'px';
 
         draggedEl = block;
     } else {
-        // Если блок находится внутри тела цикла или условия — вытащить его на холст
+        // Вытаскивание блока из тела цикла/условия
         const parentLoopBody = wsBlock.closest('.loop-body, .if-body');
         if (parentLoopBody) {
             const blockRect = wsBlock.getBoundingClientRect();
-            const canvasRect = canvas.getBoundingClientRect();
             wsBlock.style.setProperty('position', 'absolute', 'important');
             wsBlock.style.setProperty('left', (blockRect.left - canvasRect.left) + 'px', 'important');
             wsBlock.style.setProperty('top', (blockRect.top - canvasRect.top) + 'px', 'important');
@@ -432,10 +432,9 @@ document.addEventListener('mousedown', (e) => {
             canvas.appendChild(wsBlock);
             updateLoopBodyHints();
         }
-        // Клик по блоку
+
         draggedEl = wsBlock;
 
-        // Если зажат Ctrl — переключаем выделение блока
         if (e.ctrlKey || e.metaKey) {
             if (wsBlock.classList.contains('selected')) {
                 wsBlock.classList.remove('selected');
@@ -448,12 +447,8 @@ document.addEventListener('mousedown', (e) => {
             return;
         }
 
-        // Если блок не выделен — снимаем выделение с остальных
-        if (!wsBlock.classList.contains('selected')) {
-            clearSelection();
-        }
+        if (!wsBlock.classList.contains('selected')) clearSelection();
 
-        // Если есть выделенные блоки — тащим группу
         if (selectedBlocks.length > 0 && wsBlock.classList.contains('selected')) {
             isDraggingGroup = true;
             const bounds = getSelectedBlocksBounds();
@@ -467,27 +462,19 @@ document.addEventListener('mousedown', (e) => {
     const rect = draggedEl.getBoundingClientRect();
     dragOffsetX = e.clientX - rect.left;
     dragOffsetY = e.clientY - rect.top;
-
     draggedEl.style.zIndex = 1000;
 });
 
-// mousemove: перемещение или выделение рамкой
 document.addEventListener('mousemove', (e) => {
-    // Обработка выделения рамкой
     if (isSelecting && selectionBox) {
         const canvasRect = canvas.getBoundingClientRect();
         const currentX = e.clientX - canvasRect.left;
         const currentY = e.clientY - canvasRect.top;
 
-        const left = Math.min(selectionStartX, currentX);
-        const top = Math.min(selectionStartY, currentY);
-        const width = Math.abs(currentX - selectionStartX);
-        const height = Math.abs(currentY - selectionStartY);
-
-        selectionBox.style.left = left + 'px';
-        selectionBox.style.top = top + 'px';
-        selectionBox.style.width = width + 'px';
-        selectionBox.style.height = height + 'px';
+        selectionBox.style.left = Math.min(selectionStartX, currentX) + 'px';
+        selectionBox.style.top = Math.min(selectionStartY, currentY) + 'px';
+        selectionBox.style.width = Math.abs(currentX - selectionStartX) + 'px';
+        selectionBox.style.height = Math.abs(currentY - selectionStartY) + 'px';
         return;
     }
 
@@ -495,7 +482,7 @@ document.addEventListener('mousemove', (e) => {
 
     const canvasRect = canvas.getBoundingClientRect();
 
-    // Если тащим группу
+    // Перемещение группы
     if (isDraggingGroup && selectedBlocks.length > 0) {
         const groupX = e.clientX - canvasRect.left - groupDragOffsetX;
         const groupY = e.clientY - canvasRect.top - groupDragOffsetY;
@@ -509,38 +496,27 @@ document.addEventListener('mousemove', (e) => {
                 let x = parseFloat(block.style.left) || 0;
                 let y = parseFloat(block.style.top) || 0;
 
-                x += deltaX;
-                y += deltaY;
-
-                x = Math.max(0, Math.min(x, canvasRect.width - block.offsetWidth));
-                y = Math.max(0, Math.min(y, canvasRect.height - block.offsetHeight));
+                x = Math.max(0, Math.min(x + deltaX, canvasRect.width - block.offsetWidth));
+                y = Math.max(0, Math.min(y + deltaY, canvasRect.height - block.offsetHeight));
 
                 block.style.left = x + 'px';
                 block.style.top = y + 'px';
             }
         }
 
-        // Подсветка панели блоков
         updatePanelHighlight(e);
-        // Подсветка loop-body, if-body и else-body при наведении
         canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
             const r = body.getBoundingClientRect();
             const over = e.clientX >= r.left && e.clientX <= r.right &&
-                e.clientY >= r.top  && e.clientY <= r.bottom;
+                        e.clientY >= r.top  && e.clientY <= r.bottom;
             body.classList.toggle('drop-target', over);
         });
 
         const deleteRect = deleteArea.getBoundingClientRect();
-        if (
-            e.clientX >= deleteRect.left &&
-            e.clientX <= deleteRect.right &&
-            e.clientY >= deleteRect.top &&
-            e.clientY <= deleteRect.bottom
-        ) {
-            deleteArea.classList.add('active');
-        } else {
-            deleteArea.classList.remove('active');
-        }
+        deleteArea.classList.toggle('active',
+            e.clientX >= deleteRect.left && e.clientX <= deleteRect.right &&
+            e.clientY >= deleteRect.top && e.clientY <= deleteRect.bottom
+        );
         return;
     }
 
@@ -554,30 +530,21 @@ document.addEventListener('mousemove', (e) => {
     draggedEl.style.left = x + 'px';
     draggedEl.style.top = y + 'px';
 
-    // Подсветка панели блоков
     updatePanelHighlight(e);
-    // Подсветка loop-body, if-body и else-body при наведении
     canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
         const r = body.getBoundingClientRect();
         const over = e.clientX >= r.left && e.clientX <= r.right &&
-            e.clientY >= r.top  && e.clientY <= r.bottom;
+                    e.clientY >= r.top  && e.clientY <= r.bottom;
         body.classList.toggle('drop-target', over);
     });
 
     const deleteRect = deleteArea.getBoundingClientRect();
-    if (
-        e.clientX >= deleteRect.left &&
-        e.clientX <= deleteRect.right &&
-        e.clientY >= deleteRect.top &&
-        e.clientY <= deleteRect.bottom
-    ) {
-        deleteArea.classList.add('active');
-    } else {
-        deleteArea.classList.remove('active');
-    }
+    deleteArea.classList.toggle('active',
+        e.clientX >= deleteRect.left && e.clientX <= deleteRect.right &&
+        e.clientY >= deleteRect.top && e.clientY <= deleteRect.bottom
+    );
 });
 
-// mouseup: завершение drag, выделения или перемещения группы
 document.addEventListener('mouseup', (e) => {
     // Завершение выделения рамкой
     if (isSelecting && selectionBox) {
@@ -606,10 +573,8 @@ document.addEventListener('mouseup', (e) => {
     if (isDraggingGroup) {
         const panelRect = blocksPanel.getBoundingClientRect();
         const isInPanel = (
-            e.clientX >= panelRect.left &&
-            e.clientX <= panelRect.right &&
-            e.clientY >= panelRect.top &&
-            e.clientY <= panelRect.bottom
+            e.clientX >= panelRect.left && e.clientX <= panelRect.right &&
+            e.clientY >= panelRect.top && e.clientY <= panelRect.bottom
         );
 
         if (isInPanel) {
@@ -623,11 +588,10 @@ document.addEventListener('mouseup', (e) => {
         }
 
         const deleteRect = deleteArea.getBoundingClientRect();
-        const inDelete =
-            e.clientX >= deleteRect.left &&
-            e.clientX <= deleteRect.right &&
-            e.clientY >= deleteRect.top &&
-            e.clientY <= deleteRect.bottom;
+        const inDelete = (
+            e.clientX >= deleteRect.left && e.clientX <= deleteRect.right &&
+            e.clientY >= deleteRect.top && e.clientY <= deleteRect.bottom
+        );
 
         if (inDelete) {
             selectedBlocks.forEach(block => block.remove());
@@ -648,13 +612,9 @@ document.addEventListener('mouseup', (e) => {
             const otherRect = snap.other.getBoundingClientRect();
 
             let newX = otherRect.left - canvasRect.left + STACK_X_OFFSET;
-            let newY;
-
-            if (snap.position === 'below') {
-                newY = otherRect.bottom - canvasRect.top + 4;
-            } else {
-                newY = otherRect.top - canvasRect.top - draggedEl.offsetHeight - 4;
-            }
+            let newY = snap.position === 'below'
+                ? otherRect.bottom - canvasRect.top + 4
+                : otherRect.top - canvasRect.top - draggedEl.offsetHeight - 4;
 
             const origX = parseFloat(draggedEl.style.left) || 0;
             const origY = parseFloat(draggedEl.style.top) || 0;
@@ -662,10 +622,8 @@ document.addEventListener('mouseup', (e) => {
             const deltaY = newY - origY;
 
             for (const block of selectedBlocks) {
-                let x = parseFloat(block.style.left) || 0;
-                let y = parseFloat(block.style.top) || 0;
-                block.style.left = (x + deltaX) + 'px';
-                block.style.top = (y + deltaY) + 'px';
+                block.style.left = (parseFloat(block.style.left) + deltaX) + 'px';
+                block.style.top = (parseFloat(block.style.top) + deltaY) + 'px';
             }
         }
 
@@ -676,9 +634,10 @@ document.addEventListener('mouseup', (e) => {
         return;
     }
 
-    // Проверяем: блок отпущен над телом цикла или условия?
+    // Одиночное перетаскивание — проверка на вложение в тело цикла/условия
     const loopBodies = Array.from(canvas.querySelectorAll('.loop-body, .if-body, .else-body'));
     let nestTarget = null;
+    
     for (const body of loopBodies) {
         const r = body.getBoundingClientRect();
         if (e.clientX >= r.left && e.clientX <= r.right &&
@@ -688,6 +647,7 @@ document.addEventListener('mouseup', (e) => {
             break;
         }
     }
+
     if (nestTarget) {
         draggedEl.style.position = '';
         draggedEl.style.left = '';
@@ -703,15 +663,14 @@ document.addEventListener('mouseup', (e) => {
         updateLoopBodyHints();
         return;
     }
+
     canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(b => b.classList.remove('drop-target'));
 
-    // Одиночное перетаскивание
+    // Проверка: панель блоков
     const panelRect = blocksPanel.getBoundingClientRect();
     const isInPanel = (
-        e.clientX >= panelRect.left &&
-        e.clientX <= panelRect.right &&
-        e.clientY >= panelRect.top &&
-        e.clientY <= panelRect.bottom
+        e.clientX >= panelRect.left && e.clientX <= panelRect.right &&
+        e.clientY >= panelRect.top && e.clientY <= panelRect.bottom
     );
 
     if (isInPanel) {
@@ -722,12 +681,12 @@ document.addEventListener('mouseup', (e) => {
         return;
     }
 
+    // Проверка: зона удаления
     const deleteRect = deleteArea.getBoundingClientRect();
-    const inDelete =
-        e.clientX >= deleteRect.left &&
-        e.clientX <= deleteRect.right &&
-        e.clientY >= deleteRect.top &&
-        e.clientY <= deleteRect.bottom;
+    const inDelete = (
+        e.clientX >= deleteRect.left && e.clientX <= deleteRect.right &&
+        e.clientY >= deleteRect.top && e.clientY <= deleteRect.bottom
+    );
 
     if (inDelete) {
         draggedEl.remove();
@@ -740,19 +699,16 @@ document.addEventListener('mouseup', (e) => {
     clearPanelHighlight();
     deleteArea.classList.remove('active');
 
+    // Snap к другому блоку
     const snap = findSnapTarget(draggedEl);
     if (snap) {
         const canvasRect = canvas.getBoundingClientRect();
         const otherRect = snap.other.getBoundingClientRect();
 
         let newX = otherRect.left - canvasRect.left + STACK_X_OFFSET;
-        let newY;
-
-        if (snap.position === 'below') {
-            newY = otherRect.bottom - canvasRect.top + 4;
-        } else {
-            newY = otherRect.top - canvasRect.top - draggedEl.offsetHeight - 4;
-        }
+        let newY = snap.position === 'below'
+            ? otherRect.bottom - canvasRect.top + 4
+            : otherRect.top - canvasRect.top - draggedEl.offsetHeight - 4;
 
         draggedEl.style.left = newX + 'px';
         draggedEl.style.top = newY + 'px';
@@ -778,8 +734,9 @@ document.addEventListener('dragstart', (e) => {
 
 updatePlaceholderVisibility();
 
-
-// --- МИНИМАЛЬНЫЙ ИНТЕРПРЕТАТОР ---
+// ============================================================================
+// КОНСОЛЬ
+// ============================================================================
 
 const consolePane = document.createElement('div');
 consolePane.style.position = 'fixed';
@@ -819,44 +776,37 @@ function clearConsole() {
     consolePane.textContent = '';
 }
 
-// ============================================
-// ПАРСЕР МАТЕМАТИЧЕСКИХ ВЫРАЖЕНИЙ
-// ============================================
+// ============================================================================
+// ПАРСЕР ВЫРАЖЕНИЙ
+// ============================================================================
 
 function calculate(expression, vars) {
     expression = expression.replace(/\s/g, '');
     expression = substituteVariables(expression, vars);
-
-    // Сначала обрабатываем скобки
     expression = parseeval(expression);
-
-    // Потом умножение/деление (слева направо)
     expression = parsemuldiv(expression);
-
-    // В конце сложение/вычитание
     expression = parseadd(expression);
 
     const result = parseFloat(expression);
-    if (isNaN(result)) {
-        throw new Error(`Переменная не существует`);
-    }
+    if (isNaN(result)) throw new Error(`Переменная не существует`);
     return result;
 }
 
 function substituteVariables(expr, vars) {
-    // Сначала заменяем обращения к элементам массивов a[i]
+    // Замена обращений к массивам a[i]
     expr = expr.replace(/([a-zA-Z_]\w*)\[([^\]]+)\]/g, (match, name, idxExpr) => {
-        if (vars._arrays && vars._arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
-        if (!vars._arrays) throw new Error(`Массив '${name}' не объявлен`);
+        if (!vars._arrays || vars._arrays[name] === undefined) {
+            throw new Error(`Массив '${name}' не объявлен`);
+        }
         const idx = Math.floor(evalExpression(idxExpr, vars));
-        if (idx < 0 || idx >= vars._arrays[name].length)
+        if (idx < 0 || idx >= vars._arrays[name].length) {
             throw new Error(`Выход за пределы: ${name}[${idx}]`);
+        }
         return vars._arrays[name][idx];
     });
 
-    // Заменяем имена переменных на их значения
+    // Замена переменных
     const varNames = Object.keys(vars).filter(k => k !== '_arrays').sort((a, b) => b.length - a.length);
-
     for (const name of varNames) {
         const regex = new RegExp('(?<![a-zA-Z0-9_])' + name + '(?![a-zA-Z0-9_])', 'g');
         expr = expr.replace(regex, vars[name]);
@@ -866,160 +816,122 @@ function substituteVariables(expr, vars) {
 }
 
 function parseeval(line) {
-    var k = 1;
+    let k = 1;
     do {
-        var openskoba = line.lastIndexOf("(");
+        const openskoba = line.lastIndexOf("(");
         if (openskoba < 0) {
             k = 0;
         } else {
-            var closeskoba = line.indexOf(")", openskoba);
-            var inside = line.slice(openskoba + 1, closeskoba);
-            var step1 = parsemuldiv(inside);
-            var step2 = parseadd(step1);
-            line = line.substr(0, openskoba) +
-                step2.toString() +
-                line.substr(closeskoba + 1);
+            const closeskoba = line.indexOf(")", openskoba);
+            const inside = line.slice(openskoba + 1, closeskoba);
+            const step1 = parsemuldiv(inside);
+            const step2 = parseadd(step1);
+            line = line.substr(0, openskoba) + step2.toString() + line.substr(closeskoba + 1);
         }
-    } while (k == 1);
-
+    } while (k === 1);
     return line;
 }
 
 function parsemuldiv(line) {
-    var k = 1;
-
+    let k = 1;
     do {
-        var firstMul = line.indexOf("*");
-        var firstDiv = line.indexOf("/");
-        var firstOp;
+        const firstMul = line.indexOf("*");
+        const firstDiv = line.indexOf("/");
+        let firstOp;
 
-        if (firstMul == -1 && firstDiv == -1) {
+        if (firstMul === -1 && firstDiv === -1) {
             firstOp = -1;
-        } else if (firstMul == -1) {
+        } else if (firstMul === -1) {
             firstOp = firstDiv;
-        } else if (firstDiv == -1) {
+        } else if (firstDiv === -1) {
             firstOp = firstMul;
         } else {
             firstOp = Math.min(firstMul, firstDiv);
         }
 
-        if (firstOp == -1) {
+        if (firstOp === -1) {
             k = 0;
         } else {
-            var operator = line.charAt(firstOp);
+            const operator = line.charAt(firstOp);
 
-            var z = firstOp;
-            var beforez;
-
+            // Левый операнд
+            let z = firstOp;
+            let beforez;
             do {
                 beforez = z - 1;
-                if (beforez < 0 ||
-                    line.charAt(beforez) == "*" ||
-                    line.charAt(beforez) == "/" ||
-                    line.charAt(beforez) == "-" ||
-                    line.charAt(beforez) == "+") {
+                if (beforez < 0 || ["*", "/", "-", "+"].includes(line.charAt(beforez))) {
                     z = -2;
                 }
-                z = z - 1;
+                z--;
             } while (z > -2);
 
-            var op1;
-            if (beforez < 0) {
-                op1 = line.slice(0, firstOp);
-            } else {
-                op1 = line.slice(beforez + 1, firstOp);
-            }
+            const op1 = beforez < 0 ? line.slice(0, firstOp) : line.slice(beforez + 1, firstOp);
 
+            // Правый операнд
             z = firstOp;
-            var afterz;
-
+            let afterz;
             do {
                 afterz = z + 1;
-                if (afterz >= line.length ||
-                    line.charAt(afterz) == "*" ||
-                    line.charAt(afterz) == "/" ||
-                    line.charAt(afterz) == "-" ||
-                    line.charAt(afterz) == "+") {
+                if (afterz >= line.length || ["*", "/", "-", "+"].includes(line.charAt(afterz))) {
                     z = line.length + 1;
                 }
-                z = z + 1;
+                z++;
             } while (z < line.length + 1);
 
-            var op2;
-            if (afterz >= line.length) {
-                op2 = line.slice(firstOp + 1, line.length);
-            } else {
-                op2 = line.slice(firstOp + 1, afterz);
-            }
+            const op2 = afterz >= line.length ? line.slice(firstOp + 1) : line.slice(firstOp + 1, afterz);
 
-            var res;
-            if (operator == '*') {
+            // Вычисление
+            let res;
+            if (operator === '*') {
                 res = parseFloat(op1) * parseFloat(op2);
             } else {
-                if (parseFloat(op2) === 0) {
-                    throw new Error("Деление на ноль");
-                }
+                if (parseFloat(op2) === 0) throw new Error("Деление на ноль");
                 res = parseFloat(op1) / parseFloat(op2);
             }
 
-            if (beforez < 0) {
-                line = res.toString() + line.substr(afterz);
-            } else {
-                line = line.substr(0, beforez + 1) +
-                    res.toString() +
-                    line.substr(afterz);
-            }
+            line = (beforez < 0 ? res.toString() : line.substr(0, beforez + 1) + res.toString()) + line.substr(afterz);
         }
-    } while (k == 1);
-
+    } while (k === 1);
     return line;
 }
 
 function parseadd(line) {
     do {
-        var before = 1;
-        if (line.charAt(0) == "-") {
+        let before = 1;
+        if (line.charAt(0) === "-") {
             before = -1;
             line = line.slice(1);
         }
 
-        var kx = line.indexOf("+");
-        var ky = line.indexOf("-");
+        const kx = line.indexOf("+");
+        const ky = line.indexOf("-");
 
-        if (kx == -1 && ky == -1) {
+        if (kx === -1 && ky === -1) {
             line = (before * parseFloat(line)).toString();
             break;
-        } else {
-            var lastz, attr;
-
-            if ((kx > 0 && kx < ky) || (kx > 0 && ky == -1)) {
-                lastz = kx;
-                attr = 1;
-            }
-            if ((ky > 0 && ky < kx) || (ky > 0 && kx == -1)) {
-                lastz = ky;
-                attr = -1;
-            }
-
-            var op1 = before * parseFloat(line.slice(0, lastz));
-
-            var arg = lastz + 1;
-            do {
-                if (arg >= line.length ||
-                    line.charAt(arg) == "+" ||
-                    line.charAt(arg) == "-") {
-                    break;
-                }
-                arg = arg + 1;
-            } while (arg <= line.length);
-
-            var op2 = attr * parseFloat(line.slice(lastz + 1, arg));
-            var res = op1 + op2;
-
-            line = res.toString() + line.slice(arg);
         }
-    } while (true);
 
+        let lastz, attr;
+        if ((kx > 0 && kx < ky) || (kx > 0 && ky === -1)) {
+            lastz = kx;
+            attr = 1;
+        } else if ((ky > 0 && ky < kx) || (ky > 0 && kx === -1)) {
+            lastz = ky;
+            attr = -1;
+        }
+
+        const op1 = before * parseFloat(line.slice(0, lastz));
+
+        let arg = lastz + 1;
+        while (arg < line.length && !["+", "-"].includes(line.charAt(arg))) {
+            arg++;
+        }
+
+        const op2 = attr * parseFloat(line.slice(lastz + 1, arg));
+        const res = op1 + op2;
+
+        line = res.toString() + line.slice(arg);
+    } while (true);
     return line;
 }
 
@@ -1028,36 +940,36 @@ function evalExpression(expr, vars) {
     return calculate(expr, vars);
 }
 
-// Оценка условия
+// ============================================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ИНТЕРПРЕТЕТАТОРА
+// ============================================================================
+
 function evaluateCondition(leftExpr, op, rightExpr, vars) {
-    const left  = evalExpression(leftExpr,  vars);
+    const left = evalExpression(leftExpr, vars);
     const right = evalExpression(rightExpr, vars);
+    
     switch (op) {
-        case '<':  return left <  right;
-        case '>':  return left >  right;
+        case '<':  return left < right;
+        case '>':  return left > right;
         case '==': return left == right;
         case '!=': return left != right;
         case '>=': return left >= right;
         case '<=': return left <= right;
         case 'and': return !!left && !!right;
         case 'or':  return !!left || !!right;
+        default: return false;
     }
-    return false;
 }
 
-// Оценка логической операции (для блока logical_op)
 function evaluateLogicalOp(leftExpr, op, rightExpr, vars) {
-    const left  = evalExpression(leftExpr,  vars);
+    const left = evalExpression(leftExpr, vars);
     const right = evalExpression(rightExpr, vars);
-    if (op === 'and') {
-        return (left && right) ? 1 : 0;
-    } else if (op === 'or') {
-        return (left || right) ? 1 : 0;
-    }
+    
+    if (op === 'and') return (left && right) ? 1 : 0;
+    if (op === 'or') return (left || right) ? 1 : 0;
     return 0;
 }
 
-// Находит следующий блок в цепочке (снизу от текущего)
 function findNextBlockInChain(currentBlock, allBlocks) {
     const canvasRect = canvas.getBoundingClientRect();
     const currentRect = currentBlock.getBoundingClientRect();
@@ -1086,7 +998,6 @@ function findNextBlockInChain(currentBlock, allBlocks) {
     return nextBlock;
 }
 
-// Находит верхние блоки (начало цепочек)
 function findTopBlocks(blocks) {
     const canvasRect = canvas.getBoundingClientRect();
     const topBlocks = [];
@@ -1099,6 +1010,7 @@ function findTopBlocks(blocks) {
         let hasBlockAbove = false;
         for (const other of blocks) {
             if (other === block) continue;
+            
             const otherRect = other.getBoundingClientRect();
             const otherBottom = otherRect.bottom - canvasRect.top;
             const otherCenterX = otherRect.left - canvasRect.left + otherRect.width / 2;
@@ -1112,16 +1024,19 @@ function findTopBlocks(blocks) {
             }
         }
 
-        if (!hasBlockAbove) {
-            topBlocks.push(block);
-        }
+        if (!hasBlockAbove) topBlocks.push(block);
     }
+    
     return topBlocks;
 }
 
-// Выполняет один блок с возможностью подсветки ошибки
+// ============================================================================
+// ИНТЕРПРЕТЕТАТОР: ВЫПОЛНЕНИЕ БЛОКОВ
+// ============================================================================
+
 function executeSingleBlock(block, scope) {
     const type = block.dataset.type;
+    
     try {
         if (type === 'assign') {
             const name = block.querySelector('.input-target').value.trim();
@@ -1137,27 +1052,25 @@ function executeSingleBlock(block, scope) {
         }
 
         if (type === 'logical_op') {
-            const leftExpr  = block.querySelector('.input-logic-left').value.trim();
-            const op        = block.querySelector('.input-logic-op').value;
+            const leftExpr = block.querySelector('.input-logic-left').value.trim();
+            const op = block.querySelector('.input-logic-op').value;
             const rightExpr = block.querySelector('.input-logic-right').value.trim();
             const result = evaluateLogicalOp(leftExpr, op, rightExpr, scope);
             logToConsole(String(result));
         }
 
         if (type === 'loop') {
-            const leftExpr  = block.querySelector('.input-cond-left').value.trim();
-            const op        = block.querySelector('.input-cond-op').value;
+            const leftExpr = block.querySelector('.input-cond-left').value.trim();
+            const op = block.querySelector('.input-cond-op').value;
             const rightExpr = block.querySelector('.input-cond-right').value.trim();
 
             const bodyBlocks = Array.from(
                 block.querySelector('.loop-body').querySelectorAll(':scope > .workspace-block')
             );
 
-            const MAX_ITER = 1000;
             let iterations = 0;
-
             while (evaluateCondition(leftExpr, op, rightExpr, scope)) {
-                if (iterations++ >= MAX_ITER) {
+                if (iterations++ >= MAX_LOOP_ITERATIONS) {
                     throw new Error('Превышен лимит 1000 итераций — бесконечный цикл?');
                 }
                 executeBlockList(bodyBlocks, scope, true);
@@ -1165,14 +1078,13 @@ function executeSingleBlock(block, scope) {
         }
 
         if (type === 'if') {
-            const leftExpr  = block.querySelector('.input-cond-left').value.trim();
-            const op        = block.querySelector('.input-cond-op').value;
+            const leftExpr = block.querySelector('.input-cond-left').value.trim();
+            const op = block.querySelector('.input-cond-op').value;
             const rightExpr = block.querySelector('.input-cond-right').value.trim();
 
             const bodyBlocks = Array.from(
                 block.querySelector('.if-body').querySelectorAll(':scope > .workspace-block')
             );
-
             const elseBodyBlocks = Array.from(
                 block.querySelector('.else-body').querySelectorAll(':scope > .workspace-block')
             );
@@ -1184,38 +1096,36 @@ function executeSingleBlock(block, scope) {
             }
         }
 
-        // Блоки массивов
         if (type === 'array_create') {
             const name = block.querySelector('.input-arr-name').value.trim();
             const size = Math.floor(evalExpression(block.querySelector('.input-arr-size').value.trim(), scope));
+            
             if (!name) throw new Error('Пустое имя массива');
-            if (size <= 0 || size > 10000) {
-                throw new Error(`Недопустимый размер: ${size}`);
-            }
+            if (size <= 0 || size > 10000) throw new Error(`Недопустимый размер: ${size}`);
+            
             scope._arrays[name] = new Array(size).fill(0);
             logToConsole(`Массив '${name}' размером ${size} создан`);
         }
 
         if (type === 'array_set') {
             const name = block.querySelector('.input-arr-name').value.trim();
-            const idx  = Math.floor(evalExpression(block.querySelector('.input-arr-index').value.trim(), scope));
-            const val  = evalExpression(block.querySelector('.input-arr-value').value.trim(), scope);
+            const idx = Math.floor(evalExpression(block.querySelector('.input-arr-index').value.trim(), scope));
+            const val = evalExpression(block.querySelector('.input-arr-value').value.trim(), scope);
+            
             if (scope._arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
             if (idx < 0 || idx >= scope._arrays[name].length) throw new Error(`Выход за пределы: ${name}[${idx}]`);
+            
             scope._arrays[name][idx] = val;
         }
 
         if (type === 'array_get') {
             const target = block.querySelector('.input-target').value.trim();
-            const name   = block.querySelector('.input-arr-name').value.trim();
-            const idx    = Math.floor(
-                evalExpression(block.querySelector('.input-arr-index').value.trim(), scope)
-            );
+            const name = block.querySelector('.input-arr-name').value.trim();
+            const idx = Math.floor(evalExpression(block.querySelector('.input-arr-index').value.trim(), scope));
 
             if (!target) throw new Error('Пустое имя переменной‑приёмника');
             if (scope._arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
-            if (idx < 0 || idx >= scope._arrays[name].length)
-                throw new Error(`Выход за пределы: ${name}[${idx}]`);
+            if (idx < 0 || idx >= scope._arrays[name].length) throw new Error(`Выход за пределы: ${name}[${idx}]`);
 
             scope[target] = scope._arrays[name][idx];
         }
@@ -1231,41 +1141,34 @@ function executeSingleBlock(block, scope) {
             if (!name) throw new Error('Пустое имя массива для сортировки');
             if (scope._arrays[name] === undefined) throw new Error(`Массив '${name}' не объявлен`);
 
-            // Сортировка пузырьком по возрастанию
             const arr = scope._arrays[name];
             const n = arr.length;
+            
             for (let i = 0; i < n - 1; i++) {
                 for (let j = 0; j < n - i - 1; j++) {
                     if (arr[j] > arr[j + 1]) {
-                        const temp = arr[j];
-                        arr[j] = arr[j + 1];
-                        arr[j + 1] = temp;
+                        [arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
                     }
                 }
             }
+            
             logToConsole(`Массив '${name}' отсортирован: [${arr.join(', ')}]`);
         }
     } catch (e) {
-        // Добавляем ссылку на блок в ошибку для подсветки
         e.errorBlock = block;
         throw e;
     }
 }
 
-// Находит блок, в котором произошла ошибка
 function findErrorBlock(e) {
     let current = e;
     while (current && current.errorBlock === undefined) {
-        if (current.cause) {
-            current = current.cause;
-        } else {
-            break;
-        }
+        if (!current.cause) break;
+        current = current.cause;
     }
     return current.errorBlock || null;
 }
 
-// Выполняет цепочку блоков последовательно
 function executeChain(startBlock, allBlocks, scope) {
     let current = startBlock;
     while (current) {
@@ -1274,55 +1177,308 @@ function executeChain(startBlock, allBlocks, scope) {
     }
 }
 
-// Рекурсивный исполнитель списка блоков с изолированными областями видимости
 function executeBlockList(blocks, vars, isIsolated = false) {
-    let scope;
-    if (isIsolated) {
-        scope = { ...vars };
-    } else {
-        scope = vars;
-    }
-
-    // Находим все верхние блоки и выполняем каждую цепочку
+    const scope = isIsolated ? { ...vars } : vars;
     const topBlocks = findTopBlocks(blocks);
+    
     for (const startBlock of topBlocks) {
         executeChain(startBlock, blocks, scope);
     }
 }
 
-// Снимает подсветку ошибки со всех блоков
-function clearErrorHighlight() {
-    canvas.querySelectorAll('.workspace-block.block-error').forEach(block => {
-        block.classList.remove('block-error');
+// ============================================================================
+// CHECK-REVIEW: ВАЛИДАЦИЯ ПРОГРАММЫ ПЕРЕД ЗАПУСКОМ
+// ============================================================================
+
+function checkReview() {
+    const blocks = Array.from(canvas.querySelectorAll('.workspace-block'));
+    const errors = [];
+    const warnings = [];
+
+    if (blocks.length === 0) {
+        errors.push('Нет блоков для выполнения');
+        return { valid: false, errors, warnings };
+    }
+
+    // Проверка пустых полей в блоках
+    blocks.forEach((block, index) => {
+        const type = block.dataset.type;
+        const blockNum = index + 1;
+
+        switch (type) {
+            case 'assign': {
+                const target = block.querySelector('.input-target')?.value.trim();
+                const value = block.querySelector('.input-value')?.value.trim();
+                if (!target) errors.push(`Блок #${blockNum}: пустое имя переменной`);
+                if (!value) warnings.push(`Блок #${blockNum}: пустое значение`);
+                break;
+            }
+            case 'print': {
+                const msg = block.querySelector('.input-msg')?.value.trim();
+                if (!msg) warnings.push(`Блок #${blockNum}: пустое выражение для вывода`);
+                break;
+            }
+            case 'if':
+            case 'loop': {
+                const left = block.querySelector('.input-cond-left')?.value.trim();
+                const right = block.querySelector('.input-cond-right')?.value.trim();
+                if (!left || !right) errors.push(`Блок #${blockNum}: пустое условие`);
+                break;
+            }
+            case 'array_create': {
+                const name = block.querySelector('.input-arr-name')?.value.trim();
+                const size = block.querySelector('.input-arr-size')?.value.trim();
+                if (!name) errors.push(`Блок #${blockNum}: пустое имя массива`);
+                if (!size) errors.push(`Блок #${blockNum}: пустой размер массива`);
+                break;
+            }
+            case 'array_set':
+            case 'array_get': {
+                const name = block.querySelector('.input-arr-name')?.value.trim();
+                const index = block.querySelector('.input-arr-index')?.value.trim();
+                if (!name) errors.push(`Блок #${blockNum}: пустое имя массива`);
+                if (!index) errors.push(`Блок #${blockNum}: пустой индекс`);
+                break;
+            }
+            case 'array_print':
+            case 'bubble_sort': {
+                const name = block.querySelector('.input-arr-name')?.value.trim();
+                if (!name) errors.push(`Блок #${blockNum}: пустое имя массива`);
+                break;
+            }
+        }
+    });
+
+    return {
+        valid: errors.length === 0,
+        errors,
+        warnings
+    };
+}
+
+// ============================================================================
+// СОХРАНЕНИЕ И ИМПОРТ ПРОГРАММЫ
+// ============================================================================
+
+/**
+ * Собирает данные всех блоков в сериализуемый формат
+ */
+function serializeProgram() {
+    const blocks = Array.from(canvas.querySelectorAll('.workspace-block'));
+    
+    return blocks.map(block => {
+        const data = {
+            type: block.dataset.type,
+            x: parseFloat(block.style.left) || 0,
+            y: parseFloat(block.style.top) || 0,
+            inputs: {}
+        };
+
+        // Сохраняем все input и select значения
+        const inputs = block.querySelectorAll('input, select');
+        inputs.forEach((input, index) => {
+            data.inputs[index] = input.tagName === 'INPUT' ? input.value : input.value;
+        });
+
+        // Рекурсивно сохраняем вложенные блоки (в телах if, loop, else)
+        const loopBody = block.querySelector('.loop-body');
+        const ifBody = block.querySelector('.if-body');
+        const elseBody = block.querySelector('.else-body');
+
+        if (loopBody) {
+            data.loopBody = Array.from(loopBody.querySelectorAll(':scope > .workspace-block')).map(child => ({
+                type: child.dataset.type,
+                x: parseFloat(child.style.left) || 0,
+                y: parseFloat(child.style.top) || 0,
+                inputs: Object.fromEntries(
+                    Array.from(child.querySelectorAll('input, select')).map((inp, i) => [i, inp.value])
+                )
+            }));
+        }
+
+        if (ifBody) {
+            data.ifBody = Array.from(ifBody.querySelectorAll(':scope > .workspace-block')).map(child => ({
+                type: child.dataset.type,
+                x: parseFloat(child.style.left) || 0,
+                y: parseFloat(child.style.top) || 0,
+                inputs: Object.fromEntries(
+                    Array.from(child.querySelectorAll('input, select')).map((inp, i) => [i, inp.value])
+                )
+            }));
+        }
+
+        if (elseBody) {
+            data.elseBody = Array.from(elseBody.querySelectorAll(':scope > .workspace-block')).map(child => ({
+                type: child.dataset.type,
+                x: parseFloat(child.style.left) || 0,
+                y: parseFloat(child.style.top) || 0,
+                inputs: Object.fromEntries(
+                    Array.from(child.querySelectorAll('input, select')).map((inp, i) => [i, inp.value])
+                )
+            }));
+        }
+
+        return data;
     });
 }
 
-// Подсвечивает блок, в котором произошла ошибка
-function highlightBlockError(block) {
-    clearErrorHighlight();
-    block.classList.add('block-error');
+/**
+ * Создаёт блок из сериализованных данных
+ */
+function deserializeBlock(data, isNested = false) {
+    const block = createWorkspaceBlock(data.type);
+    
+    if (!isNested) {
+        block.style.left = data.x + 'px';
+        block.style.top = data.y + 'px';
+    }
+
+    // Восстанавливаем значения input и select
+    const inputs = block.querySelectorAll('input, select');
+    Object.entries(data.inputs || {}).forEach(([index, value]) => {
+        if (inputs[index]) inputs[index].value = value;
+    });
+
+    return block;
 }
+
+/**
+ * Сохраняет программу в JSON файл
+ */
+function saveProgram() {
+    const programData = {
+        version: '1.0',
+        timestamp: new Date().toISOString(),
+        blocks: serializeProgram()
+    };
+
+    const json = JSON.stringify(programData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'program.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    logToConsole('✓ Программа сохранена в program.json');
+}
+
+/**
+ * Загружает программу из JSON файла
+ */
+function loadProgram(file) {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+        try {
+            const programData = JSON.parse(e.target.result);
+            
+            if (!programData.blocks || !Array.isArray(programData.blocks)) {
+                throw new Error('Неверный формат файла');
+            }
+
+            // Очищаем текущий workspace
+            canvas.querySelectorAll('.workspace-block').forEach(b => b.remove());
+
+            // Восстанавливаем блоки
+            programData.blocks.forEach(blockData => {
+                const block = deserializeBlock(blockData);
+                canvas.appendChild(block);
+
+                // Восстанавливаем вложенные блоки
+                if (blockData.loopBody) {
+                    const loopBody = block.querySelector('.loop-body');
+                    blockData.loopBody.forEach(childData => {
+                        loopBody.appendChild(deserializeBlock(childData, true));
+                    });
+                }
+
+                if (blockData.ifBody) {
+                    const ifBody = block.querySelector('.if-body');
+                    blockData.ifBody.forEach(childData => {
+                        ifBody.appendChild(deserializeBlock(childData, true));
+                    });
+                }
+
+                if (blockData.elseBody) {
+                    const elseBody = block.querySelector('.else-body');
+                    blockData.elseBody.forEach(childData => {
+                        elseBody.appendChild(deserializeBlock(childData, true));
+                    });
+                }
+            });
+
+            updatePlaceholderVisibility();
+            updateLoopBodyHints();
+            logToConsole(`✓ Программа загружена: ${programData.blocks.length} блоков`);
+            
+        } catch (err) {
+            logToConsole('✕ Ошибка загрузки: ' + err.message, true);
+        }
+    };
+
+    reader.readAsText(file);
+}
+
+// Обработчики кнопок сохранения и импорта
+if (saveBtn) saveBtn.addEventListener('click', saveProgram);
+
+if (importBtn) {
+    importBtn.addEventListener('click', () => importFileInput.click());
+}
+
+if (importFileInput) {
+    importFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            loadProgram(file);
+            e.target.value = ''; // Сброс для повторной загрузки
+        }
+    });
+}
+
+// ============================================================================
+// ЗАПУСК ПРОГРАММЫ
+// ============================================================================
 
 runBtn.addEventListener('click', () => {
     clearConsole();
     clearErrorHighlight();
+
+    // Check-review перед запуском
+    const review = checkReview();
+    
+    if (!review.valid) {
+        logToConsole('✕ Ошибки валидации:', true);
+        review.errors.forEach(err => logToConsole('  • ' + err, true));
+        if (review.warnings.length > 0) {
+            logToConsole('Предупреждения:');
+            review.warnings.forEach(warn => logToConsole('  • ' + warn));
+        }
+        return;
+    }
+
+    if (review.warnings.length > 0) {
+        logToConsole('⚠ Предупреждения:');
+        review.warnings.forEach(warn => logToConsole('  • ' + warn));
+    }
+
     logToConsole('▶ Начало выполнения...');
+    
     const vars = { _arrays: {} };
+    
     try {
-        const blocks = Array.from(
-            canvas.querySelectorAll(':scope > .workspace-block')
-        );
-
+        const blocks = Array.from(canvas.querySelectorAll(':scope > .workspace-block'));
         executeBlockList(blocks, vars);
-
         logToConsole('■ Выполнение завершено.');
         logToConsole('Переменные: ' + JSON.stringify(vars));
     } catch (e) {
         logToConsole('✕ Ошибка: ' + e.message, true);
-        // Находим блок, который вызвал ошибку, через стек
         const errorBlock = findErrorBlock(e);
-        if (errorBlock) {
-            highlightBlockError(errorBlock);
-        }
+        if (errorBlock) highlightBlockError(errorBlock);
     }
 });
