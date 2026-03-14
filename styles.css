@@ -689,21 +689,3 @@ body.dark-theme header {
     background: transparent;
 }
 
-/* ============================================
-   АДАПТИВНОСТЬ (МОБИЛЬНЫЕ УСТРОЙСТВА)
-   ============================================ */
-@media (max-width: 900px) {
-    .app {
-        flex-direction: column;
-    }
-
-    .blocks-panel {
-        width: 100%;
-        max-width: none;
-        order: 2;
-    }
-
-    .workspace-panel {
-        order: 1;
-    }
-}

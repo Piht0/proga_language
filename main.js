@@ -104,16 +104,17 @@ function getSelectedBlocksBounds() {
     return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
 }
 
+// проверка наличия блоков
 function updatePlaceholderVisibility() {
     const hasBlocks = canvas.querySelectorAll('.workspace-block').length > 0;
     placeholder.style.display = hasBlocks ? 'none' : 'flex';
 }
 
+// подсказки 
 function updateLoopBodyHints() {
     canvas.querySelectorAll('.loop-body, .if-body, .else-body').forEach(body => {
-        const hasBlocks = body.querySelector('.workspace-block');
-        let hint = body.querySelector('.loop-body-hint, .if-body-hint, .else-body-hint');
-        
+        const hasBlocks = body.querySelector('.workspace-block'); // есть ли блоки
+        let hint = body.querySelector('.loop-body-hint, .if-body-hint, .else-body-hint'); // есть ли подсказки
         if (hasBlocks) {
             if (hint) hint.remove();
         } else if (!hint) {
@@ -128,10 +129,11 @@ function updateLoopBodyHints() {
     });
 }
 
+// подсвечивание блоков красненьким 
 function updatePanelHighlight(e) {
     if (!draggedEl) return;
 
-    const panelRect = blocksPanel.getBoundingClientRect();
+    const panelRect = blocksPanel.getBoundingClientRect(); // возварщает объект с координатами 
     const isInPanel = (
         e.clientX >= panelRect.left &&
         e.clientX <= panelRect.right &&
@@ -148,11 +150,13 @@ function updatePanelHighlight(e) {
     }
 }
 
+// убирает подсветку с панели блоков 
 function clearPanelHighlight() {
     blocksPanel.style.boxShadow = '';
     blocksPanel.style.borderColor = '';
 }
 
+// убирает подсветку ошиьочек
 function clearErrorHighlight() {
     canvas.querySelectorAll('.workspace-block.block-error').forEach(block => {
         block.classList.remove('block-error');
@@ -164,10 +168,8 @@ function highlightBlockError(block) {
     block.classList.add('block-error');
 }
 
-// ============================================================================
-// ФАБРИКА БЛОКОВ
-// ============================================================================
 
+// АЛАБУГА БЛОКОТЕХ
 function createWorkspaceBlock(type) {
     const block = document.createElement('div');
     block.classList.add('workspace-block');
@@ -323,17 +325,17 @@ function createWorkspaceBlock(type) {
 
     const config = configs[type];
     if (config) {
-        block.classList.add(config.class);
-        block.dataset.type = type;
-        block.innerHTML = config.html;
+        block.classList.add(config.class); // добавляем css класс
+        block.dataset.type = type; // сохраняем дата атрибутик
+        block.innerHTML = config.html; // вставляем html кфг
     } else {
-        block.textContent = type;
+        block.textContent = type; // вставляем новый тип блока как текстик 
         block.innerHTML += `<div class="connector"></div><div class="notch"></div>`;
     }
-
     return block;
 }
 
+// функция для склеивания 
 function findSnapTarget(block) {
     const blocks = Array.from(canvas.querySelectorAll('.workspace-block')).filter(b => b !== block);
     if (blocks.length === 0) return null;
@@ -353,9 +355,9 @@ function findSnapTarget(block) {
         const oBottom = r.bottom - canvasRect.top;
         const oCenterX = r.left - canvasRect.left;
 
-        const distBelow = Math.abs(blockTop - oBottom);
-        const distAbove = Math.abs(blockBottom - oTop);
-        const xCloseEnough = Math.abs(blockCenterX - oCenterX) < 60;
+        const distBelow = Math.abs(blockTop - oBottom); // расстояние до блока сверху
+        const distAbove = Math.abs(blockBottom - oTop); // растояние до блока снизу 
+        const xCloseEnough = Math.abs(blockCenterX - oCenterX) < 60; // проверка по гор
 
         if (xCloseEnough) {
             if (distBelow < bestDist && distBelow < SNAP_DISTANCE) {
@@ -372,9 +374,7 @@ function findSnapTarget(block) {
     return best;
 }
 
-// ============================================================================
 // DRAG & DROP: ОБРАБОТЧИКИ СОБЫТИЙ
-// ============================================================================
 
 document.addEventListener('mousedown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
@@ -740,7 +740,6 @@ document.addEventListener('dragstart', (e) => {
 
 updatePlaceholderVisibility();
 
-// Инициализация: присваиваем ID и пересчитываем связи для существующих блоков
 document.addEventListener('DOMContentLoaded', () => {
     const blocks = Array.from(canvas.querySelectorAll('.workspace-block'));
     blocks.forEach(block => {
@@ -820,7 +819,6 @@ function substituteVariables(expr, vars) {
         return vars._arrays[name][idx];
     });
 
-    // Замена переменных
     const varNames = Object.keys(vars).filter(k => k !== '_arrays').sort((a, b) => b.length - a.length);
     for (const name of varNames) {
         const regex = new RegExp('(?<![a-zA-Z0-9_])' + name + '(?![a-zA-Z0-9_])', 'g');
@@ -955,9 +953,9 @@ function evalExpression(expr, vars) {
     return calculate(expr, vars);
 }
 
-// ============================================================================
+
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ИНТЕРПРЕТЕТАТОРА
-// ============================================================================
+
 
 function evaluateCondition(leftExpr, op, rightExpr, vars) {
     const left = evalExpression(leftExpr, vars);
